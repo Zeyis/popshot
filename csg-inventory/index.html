@@ -1,41 +1,299 @@
-<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>CSG · EiKO Inventory</title><style>
-:root{font-family:system-ui,-apple-system,Arial;color:#1c2632;background:#f6f5ef}*{box-sizing:border-box}body{margin:0}header{background:#212b30;color:white;padding:18px 4%;display:flex;justify-content:space-between;align-items:center;gap:12px}header strong{font-size:20px}header small{display:block;color:#e5d66c}main{max-width:1250px;margin:auto;padding:22px}nav{display:flex;gap:7px;flex-wrap:wrap;margin:0 0 20px}button{cursor:pointer;border:0;border-radius:8px;background:#d8d5b8;padding:10px 14px;font-weight:700;color:#243036}button:hover{filter:brightness(.95)}button.primary{background:#e6d11f}button.danger{background:#fae1dd;color:#8b2e2e}input,textarea,select{padding:11px;border:1px solid #c9cec9;border-radius:8px;font-size:16px;max-width:100%}input,textarea{width:100%}label{display:block;font-weight:700;margin:10px 0 5px}h1{font-size:24px}h2{font-size:19px}.panel{background:white;border:1px solid #dde2dd;border-radius:13px;padding:18px;margin:12px 0;box-shadow:0 2px 10px #0000000a}.muted{color:#5e6b6b;font-size:13px}.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}.row>*{min-width:0}.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:9px}.two{display:grid;grid-template-columns:1fr 1fr;gap:12px}.tablewrap{overflow:auto}table{border-collapse:collapse;width:100%}td,th{padding:11px;border-bottom:1px solid #ecefeb;text-align:left}th{font-size:12px;color:#596566}tr:hover{background:#fafaf4}.count{font-size:25px;font-weight:800}.login{max-width:420px;margin:60px auto}.hidden{display:none!important}.hint{color:#5a6266;font-size:13px}.alert{background:#fff4c7;padding:12px;border-radius:8px;margin:12px 0;color:#483c09} .error{background:#ffe5e5;color:#8b2020}.status{padding:5px 9px;border-radius:30px;background:#e6f6e6}.small{font-size:12px} .chip{border:1px solid #b9b9b0;background:white;margin:3px}.formlist{display:grid;gap:8px}.item{display:flex;gap:10px;align-items:center;justify-content:space-between;border-bottom:1px solid #eee;padding:7px 0}.item input{max-width:95px}.item div{flex:1}textarea{min-height:70px}@media(max-width:650px){header{padding:13px}main{padding:12px}.grid,.two{grid-template-columns:1fr}td,th{padding:8px 6px;font-size:12px} .panel{padding:13px}button{padding:9px}}</style></head>
-<body><header><div><strong>CAHABA SALES GROUP</strong><small>EiKO · Shared Warehouse Inventory</small></div><div id="who" class="small"></div></header>
-<div id="gate" class="panel login"><h1>Staff sign in</h1><p class="hint">Select your name. On your first visit, create a 4-digit PIN.</p><div class="formlist" id="people"></div><div id="pinform" class="hidden"><button onclick="back()">← Back</button><h2 id="welcome"></h2><label>4-digit PIN</label><input id="pin" type="password" inputmode="numeric" autocomplete="off" maxlength="4" pattern="[0-9]{4}" placeholder="••••"><div id="confirmbox" class="hidden"><label>Confirm PIN</label><input id="pin2" type="password" inputmode="numeric" maxlength="4" placeholder="••••"></div><p><label style="font-weight:400"><input id="remember" type="checkbox" checked style="width:auto"> Remember me on this device</label></p><button class="primary" id="signin" onclick="signIn()">Continue →</button></div><div class="alert hidden" id="authmsg"></div></div>
-<main id="app" class="hidden"><div class="row" style="justify-content:space-between"><nav><button onclick="tab('inventory')">Inventory</button><button onclick="tab('order')">Create Order</button><button onclick="tab('orders')">Orders</button><button onclick="tab('activity')">Activity Log</button></nav><button onclick="logout()">Switch user</button></div><div class="alert hidden" id="msg"></div><section id="inventory"><div class="grid"><div class="panel">Part numbers<div class="count" id="parts">0</div></div><div class="panel">Total units<div class="count" id="units">0</div></div><div class="panel">Low / out of stock<div class="count" id="low">0</div></div></div><div class="row"><input id="search" placeholder="Search part number or EiKO code" oninput="drawInventory()" style="flex:1"><button onclick="editPart()">+ Add Part</button><button onclick="refresh()">↻ Refresh</button></div><div class="panel tablewrap"><table><thead><tr><th>Part number</th><th>EiKO code</th><th>In stock</th><th>Action</th></tr></thead><tbody id="rows"></tbody></table></div></section>
-<section id="order" class="hidden"><h1>New Order</h1><div class="panel"><div class="two"><div><label>Customer / company</label><input id="customer"></div><div><label>Job name</label><input id="job"></div></div><div class="two"><div><label>Street address</label><input id="street"></div><div><label>City, state, ZIP</label><input id="city"></div></div><label>Notes</label><textarea id="notes"></textarea></div><div class="panel"><label>Find a part</label><input id="findpart" placeholder="Search a part or EiKO code" oninput="findParts()"><div id="matches"></div><h2>Order items</h2><div id="cart"></div><button class="primary" onclick="submitOrder()">Confirm Order & Deduct Stock</button></div></section>
-<section id="orders" class="hidden"><h1>Orders</h1><div id="orderlist"></div></section>
-<section id="activity" class="hidden"><h1>Activity Log</h1><div id="loglist"></div></section>
-<section id="edit" class="hidden"><h1 id="edith">Part details</h1><div class="panel"><input type="hidden" id="editid"><label>Part number</label><input id="editpart"><label>EiKO ordering code</label><input id="editcode"><label>Quantity on hand (absolute count)</label><input id="editqty" type="number" min="0" step="1"><label>Low stock alert level</label><input id="editmin" type="number" min="0" value="5"><label>Description</label><textarea id="editdesc"></textarea><p class="row"><button class="primary" onclick="savePart()">Save changes</button><button onclick="tab('inventory')">Cancel</button></p></div></section></main>
+<!doctype html>
+<html lang="en"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#202324"><meta name="referrer" content="no-referrer">
+<title>CSG Warehouse · EiKO & Voltec</title>
+<style>
+:root{font-family:Inter,ui-sans-serif,system-ui,-apple-system,Segoe UI,Arial,sans-serif;color:#222729;background:#f5f5f1;font-size:15px;line-height:1.4}*{box-sizing:border-box}body{margin:0}button,input,textarea,select{font:inherit}button{border:1px solid #d7dbd8;background:#fff;border-radius:9px;padding:10px 14px;font-weight:700;cursor:pointer;color:#263035;transition:background .1s ease}button:hover{background:#f8f6eb}button.primary{background:#ead421;border-color:#dec617;color:#1f221f}button.primary:hover{background:#fae733}button.danger{background:#fff1f1;border-color:#ffcdcd;color:#a13535}button.slim{padding:7px 10px;font-size:12px}button:disabled{opacity:.5;cursor:not-allowed}input,select,textarea{display:block;width:100%;max-width:100%;border-radius:8px;border:1px solid #cbd1ce;background:white;padding:11px 12px;outline:none;color:#222;font-size:16px}input:focus,textarea:focus,select:focus{border-color:#a79b29;box-shadow:0 0 0 3px #eada2850}input[type=checkbox]{width:auto;display:inline;accent-color:#bfaa17}label{display:block;margin:12px 0 6px;font-size:13px;font-weight:750;color:#3c4749}.hidden{display:none!important}header{background:#202526;color:#fff;border-bottom:4px solid #e4d00d;padding:13px max(15px,calc((100% - 1260px)/2));display:flex;justify-content:space-between;align-items:center;gap:16px}.brand{display:flex;align-items:center;gap:12px}.emblem{background:#e3d31f;color:#252525;border-radius:7px;padding:10px 8px;font-size:16px;font-weight:1000;letter-spacing:-1.5px;line-height:1}.brand-name{font-size:18px;font-weight:850;letter-spacing:.035em}.brand-sub{font-size:11px;color:#ddddbe;letter-spacing:.04em}header .user{font-size:12px;color:#f2f0d9;text-align:right}.shell{max-width:1260px;padding:24px 19px 55px;margin:auto}.tabs{display:flex;align-items:center;gap:7px;flex-wrap:wrap;padding-bottom:16px;border-bottom:1px solid #dce0db;margin-bottom:20px}.tabs button.active{background:#272e2f;color:#fff;border-color:#272e2f}.tabs .spacer{flex:1}.card{background:#fff;border:1px solid #e2e5df;border-radius:13px;padding:19px;box-shadow:0 2px 13px #17252508;margin:14px 0}.login{max-width:500px;margin:54px auto}.login h1{font-size:27px;margin:4px 0 8px}.login .people{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin:23px 0 6px}.person{display:flex;align-items:center;justify-content:space-between;padding:13px;text-align:left;min-height:58px}.person small{display:block;font-weight:500;color:#737977;font-size:11px}.bigheading{font-size:25px;margin:0 0 6px}.sub{color:#626d6b;font-size:13px;margin:6px 0 16px}.note{padding:12px 14px;border:1px solid #e5dfa5;background:#fffbda;border-radius:9px;font-size:13px;color:#565027;margin:12px 0}.alert{padding:11px 14px;background:#e7f6ed;color:#205d39;border-radius:9px;margin:13px 0}.alert.error{background:#ffeded;color:#9e2c2c}.metrics{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin:13px 0 19px}.metric{background:#fff;padding:16px 18px;border:1px solid #e3e6e1;border-radius:12px}.metric small{display:block;color:#6c7977;font-size:12px}.metric strong{font-size:28px;line-height:1.6}.toolbar,.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}.toolbar{margin:17px 0 12px}.toolbar input{flex:1;min-width:210px}.table-scroll{width:100%;overflow-x:auto}table{border-collapse:collapse;width:100%;text-align:left}th{font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:#6b7773;border-bottom:1px solid #e0e6e0;padding:11px 9px;white-space:nowrap}td{padding:12px 9px;border-bottom:1px solid #eff0ed;font-size:13px}tbody tr:hover{background:#fafbf7}.num{font-size:17px;font-weight:780;white-space:nowrap}.muted{color:#66736f;font-size:12px}.grid2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}.grid3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:13px}.section-head{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}.section-head h1{margin:0;font-size:25px}.stock-pill{font-weight:700;background:#f0f2ed;border-radius:20px;padding:4px 10px;font-size:12px}.cart-row{display:flex;align-items:center;gap:10px;justify-content:space-between;border-bottom:1px solid #eee;padding:10px 0}.cart-row>*{min-width:0}.cart-row .cart-details{flex:1}.cart-row input{width:78px}.results{max-height:260px;overflow:auto}.results .result{padding:9px;display:flex;justify-content:space-between;gap:10px;align-items:center;border-bottom:1px solid #eee}.results .result>div{min-width:0}.results .result strong{overflow-wrap:anywhere}.ordercard h3{margin:0;font-size:16px}.ordercard .row{justify-content:space-between}.badge{display:inline-block;font-size:11px;border-radius:20px;background:#e9f6eb;color:#27663b;padding:5px 9px;font-weight:800}.badge.cancelled{background:#fee9e7;color:#9b4034}.small{font-size:12px}.mono{font-family:ui-monospace,Consolas,monospace;overflow-wrap:anywhere}.tag{background:#eff1e3;font-weight:700;color:#5a632c;padding:4px 8px;border-radius:6px;font-size:11px}.pillnote{font-size:12px;color:#736b2c;background:#fff8c2;padding:6px 10px;border-radius:8px}.staff-panel{max-width:700px}.invitation{border:1px dashed #cbc776;border-radius:9px;padding:14px;margin-top:16px;background:#fffdf1}.invitation code{font-size:13px;font-weight:800;overflow-wrap:anywhere}.mobile-note{display:none}
+.preview-toolbar{display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;align-items:center;margin:12px 0 18px}.preview-surface{background:#e6e9e9;border:1px solid #d7dede;border-radius:12px;padding:26px;overflow:auto}.packingPaper{max-width:850px;min-height:1000px;margin:auto;background:white;padding:52px 52px 46px;font-family:Arial,Helvetica,sans-serif;color:#1c2a3b;box-shadow:0 12px 40px #172a3424}.packing-head{display:flex;align-items:center;justify-content:space-between;gap:28px;min-height:100px}.paper-brand{display:flex;align-items:center;gap:12px}.paper-logo{background:#e6d420;color:#171b19;font-size:25px;letter-spacing:-2.5px;font-weight:1000;padding:18px 12px;line-height:1;border-radius:4px}.paper-company{font-size:12px;font-weight:800;letter-spacing:.07em;line-height:1.3}.packing-title{text-align:right}.paper-overline{font-size:9px;letter-spacing:.2em;font-weight:750;color:#728190}.packing-title h2{font-size:27px;color:#172d41;margin:6px 0 8px;letter-spacing:.03em}.paper-id{font-size:13px;color:#526a7c;font-weight:700}.packing-line{border-top:2px solid #253e50;margin:20px 0 0}.packing-meta{display:grid;grid-template-columns:1.2fr 1fr 1.2fr 1fr;gap:15px;border-bottom:1px solid #dee4eb;padding:20px 0 21px}.packing-meta span{display:block;font-size:9px;letter-spacing:.1em;font-weight:800;color:#708193;margin-bottom:7px}.packing-meta strong{font-size:11px;color:#283e50;overflow-wrap:anywhere}.address-grid{display:grid;grid-template-columns:1fr 1fr;gap:22px;margin:29px 0 31px}.address-card{min-height:100px;font-size:12px;line-height:1.75}.address-card+.address-card{border-left:1px solid #dbe3e8;padding-left:20px}.address-label{font-size:9px;letter-spacing:.12em;font-weight:800;color:#758b9d;margin-bottom:10px}.address-title{font-size:14px;font-weight:800;color:#192e40}.address-empty{font-style:italic;color:#87929c}.packing-table-title{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:12px;gap:12px}.packing-table-title h3{font-size:11px;letter-spacing:.11em;font-weight:800;color:#263f50;margin:0}.packing-table-title span{font-size:10px;color:#728292}.paper-table{width:100%;table-layout:fixed;border-collapse:collapse}.paper-table th{background:#f0f3f6;color:#405c70;border-top:1px solid #d7e0e9;border-bottom:1px solid #b8c6d1;font-size:9px;letter-spacing:.06em;padding:12px 9px}.paper-table td{font-size:11px;line-height:1.6;border-bottom:1px solid #e1e8ee;padding:13px 9px;overflow-wrap:anywhere;vertical-align:top}.paper-table td strong{color:#1c3548;font-size:11px}.paper-table .index{width:7%;color:#7b8c9b}.paper-table .qty{width:10%;text-align:right;font-weight:800}.paper-table .code{width:26%}.line-description{font-size:10px;font-weight:400;color:#6d8193}.packing-total{display:flex;align-items:center;justify-content:space-between;gap:14px;border-bottom:2px solid #243a4b;padding:20px 8px 16px}.packing-total .linecount{font-size:10px;font-weight:800;letter-spacing:.07em;color:#688094}.packing-total .units{display:flex;align-items:center;gap:20px}.packing-total .units span{font-size:10px;font-weight:800;letter-spacing:.08em}.packing-total .units strong{font-size:25px;color:#142c40}.paper-notes{background:#f7f9fa;border-left:2px solid #9dacbd;padding:12px 14px;margin-top:24px;font-size:11px;white-space:pre-wrap}.paper-notes strong{display:block;font-size:9px;color:#677d8f;letter-spacing:.07em;margin-bottom:7px}.paper-footer{margin-top:75px;border-top:1px solid #d5dfe6;padding-top:14px;color:#7b8b98;font-size:9px;letter-spacing:.07em;display:flex;justify-content:space-between;gap:12px}
+@page{size:letter;margin:.55in}@media print{body{background:white!important}body *{visibility:hidden!important}.packingPaper,.packingPaper *{visibility:visible!important}.packingPaper{position:absolute!important;left:0;top:0;width:100%!important;max-width:none;min-height:0;padding:0!important;margin:0!important;box-shadow:none!important}.paper-table thead{display:table-header-group}.paper-table tr,.packing-meta,.address-grid{break-inside:avoid}.paper-table th{-webkit-print-color-adjust:exact;print-color-adjust:exact}}
+@media(max-width:760px){.shell{padding:16px 12px 40px}.tabs{gap:5px}.tabs button{padding:8px 9px;font-size:12px}.tabs .spacer{flex-basis:100%;height:0}.metrics{gap:6px}.metric{padding:11px}.metric strong{font-size:22px}.grid2,.grid3{grid-template-columns:1fr}.card{padding:14px}.preview-surface{padding:6px}.packingPaper{padding:22px 18px;min-height:700px}.packing-head{gap:10px;min-height:70px}.paper-logo{font-size:15px;padding:12px 8px;letter-spacing:-1px}.paper-company{font-size:9px}.packing-title h2{font-size:20px}.packing-meta{grid-template-columns:1fr 1fr}.address-grid{gap:11px}.address-card+.address-card{padding-left:11px}.paper-footer{margin-top:35px;flex-wrap:wrap}header{padding:11px 13px}header .brand-name{font-size:14px}.mobile-note{display:block}}
+</style></head>
+<body>
+<header><div class="brand"><div class="emblem">CSG</div><div><div class="brand-name">CAHABA SALES GROUP</div><div class="brand-sub">WAREHOUSE · EiKO + VOLTEC</div></div></div><div class="user" id="identityHeader">Secure shared inventory</div></header>
+<div id="login" class="card login">
+<div id="staffPicker"><h1>Warehouse sign in</h1><p class="sub">Select your name. Your PIN unlocks EiKO, Voltec, orders, and packing lists together.</p><div id="people" class="people"></div><p class="sub">Remember Me keeps you signed in on this device for up to 30 days.</p></div>
+<div id="pinStage" class="hidden"><button class="slim" onclick="backStaff()">← All employees</button><h1 id="pinHeading" style="margin-top:20px"></h1><p class="sub" id="pinHelp"></p>
+<form id="signinForm" onsubmit="event.preventDefault();signin()">
+<div id="inviteRow" class="hidden"><label for="inviteCode">One-time setup code from Cason</label><input id="inviteCode" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="Paste setup code"></div>
+<label for="userPin">Four-digit PIN</label><input id="userPin" type="password" inputmode="numeric" pattern="[0-9]{4}" maxlength="4" minlength="4" autocomplete="off" placeholder="••••" required>
+<div id="pinConfirmRow" class="hidden"><label for="userPinConfirm">Confirm four-digit PIN</label><input id="userPinConfirm" type="password" inputmode="numeric" maxlength="4" minlength="4" placeholder="••••"></div>
+<label style="font-weight:500;font-size:14px;margin:18px 0"><input type="checkbox" id="remember" checked> Remember me on this device</label>
+<button id="signinButton" type="submit" class="primary" style="width:100%">Unlock inventory</button></form></div>
+<div id="authError" class="alert error hidden" role="alert"></div></div>
+<main id="app" class="shell hidden">
+<nav class="tabs" aria-label="Warehouse sections">
+<button id="nav-eiko" class="active" onclick="tab('eiko')">EiKO Inventory</button>
+<button id="nav-voltec" onclick="tab('voltec')">Voltec Inventory</button>
+<button id="nav-order" onclick="tab('order')">Create Order</button>
+<button id="nav-orders" onclick="tab('orders')">Orders</button>
+<button id="nav-activity" onclick="tab('activity')">Activity Log</button>
+<button id="nav-staff" class="hidden" onclick="tab('staff')">Staff & PINs</button><span class="spacer"></span>
+<button class="slim" onclick="refresh(true)">↻ Sync</button><button class="slim" onclick="signout()">Sign out</button>
+</nav>
+<div id="flash" class="alert hidden" role="status"></div>
+<section id="inventorySection">
+<div class="section-head"><div><h1 id="inventoryTitle">EiKO Inventory</h1><p class="sub" id="inventorySubtitle">Quantities are the available stock on hand.</p></div><span class="stock-pill" id="updatedLabel">Shared · live</span></div>
+<div class="metrics"><div class="metric"><small>Part numbers</small><strong id="totalParts">0</strong></div><div class="metric"><small>Total units</small><strong id="totalUnits">0</strong></div><div class="metric"><small>At / below minimum</small><strong id="lowParts">0</strong></div></div>
+<div class="toolbar"><input id="inventorySearch" oninput="renderInventory()" placeholder="Search part or ordering code" aria-label="Search inventory"><button class="primary" onclick="openPart(0)">+ Add Part</button></div>
+<div class="card table-scroll"><table><thead><tr><th>Part / SKU</th><th id="codeHeader">EiKO ordering code</th><th>Available</th><th></th></tr></thead><tbody id="inventoryRows"></tbody></table></div>
+<p id="voltecSource" class="sub hidden">Voltec started from the six items in your October 20 Odoo screenshot. These quantities can be maintained here, but do not automatically sync back to Odoo.</p>
+</section>
+<section id="partSection" class="hidden"><div class="section-head"><h1 id="partHeading">Edit part</h1><button onclick="tab(activeDivision)">← Back to inventory</button></div><div class="card" style="max-width:690px"><input type="hidden" id="editId">
+<label>Part number / SKU</label><input id="editPart" autocapitalize="characters" spellcheck="false">
+<div id="codeField"><label>EiKO ordering code</label><input id="editCode" autocapitalize="characters" spellcheck="false"></div>
+<div class="grid2"><div><label>Quantity on hand — replace, do not add</label><input id="editQty" type="number" inputmode="numeric" min="0" step="1"></div><div><label>Low-stock alert threshold</label><input id="editMin" type="number" inputmode="numeric" min="0" step="1"></div></div>
+<label>Description / notes</label><textarea id="editDesc" rows="3"></textarea>
+<div class="row" style="margin-top:17px"><button class="primary" onclick="savePart()">Save to shared inventory</button><button onclick="tab(activeDivision)">Cancel</button></div></div></section>
+<section id="orderSection" class="hidden"><div class="section-head"><div><h1>Create an order</h1><p class="sub">Search and add stock from either brand — one order, one packing list.</p></div></div>
+<div class="card"><h2 style="margin-top:0;font-size:18px">Ship-to information</h2><div class="grid2"><div><label>Customer / company *</label><input id="orderCustomer" placeholder="Customer name"></div><div><label>Job / project</label><input id="orderJob" placeholder="Project name"></div><div><label>Attention / recipient</label><input id="orderAttention"></div><div><label>Street address</label><input id="orderStreet"></div><div><label>City</label><input id="orderCity"></div><div><label>State</label><input id="orderState" placeholder="AL" maxlength="30" autocapitalize="characters"></div><div><label>ZIP code</label><input id="orderZip" inputmode="numeric"></div></div><label>Notes</label><textarea id="orderNotes" rows="2"></textarea></div>
+<div class="card"><h2 style="margin-top:0;font-size:18px">Pull items</h2><input id="orderSearch" oninput="renderMatches()" placeholder="Search any EiKO or Voltec part"><div id="orderMatches" class="results"></div><h3 style="font-size:15px">Selected items</h3><div id="cartRows"></div><div class="row" style="justify-content:space-between;margin-top:17px"><strong id="cartTotal">0 units</strong><button class="primary" id="placeOrderButton" onclick="placeOrder()">Create order & deduct inventory</button></div></div></section>
+<section id="ordersSection" class="hidden"><div class="section-head"><div><h1>Order history</h1><p class="sub">Open an order's professional packing list, or cancel and restore quantities.</p></div><input id="orderFilter" oninput="renderOrders()" placeholder="Search order / job" style="max-width:280px"></div><div id="ordersList"></div></section>
+<section id="activitySection" class="hidden"><div class="section-head"><h1>Warehouse activity</h1><input id="activityFilter" oninput="renderActivity()" placeholder="Search employee, part, job" style="max-width:320px"></div><div id="activityRows"></div></section>
+<section id="staffSection" class="hidden"><div class="section-head"><h1>Staff PIN setup</h1></div><div class="card staff-panel"><p>Invite an employee to set their four-digit PIN. Only Cason can generate a one-time code, which expires after 24 hours. Already-registered employees keep their current PINs.</p><label>Select employee</label><select id="inviteStaff"><option value="">Choose an employee</option><option>Brent</option><option>Mitch</option><option>Tyler</option><option>Dylan</option></select><button class="primary" onclick="issueInvite()" style="margin-top:14px">Generate one-time setup code</button><div id="inviteResult" class="invitation hidden"></div></div></section>
+<section id="packingSection" class="hidden"><div class="preview-toolbar"><div><h1 style="margin:0">Packing list</h1><p class="sub" style="margin:3px 0">Preview and print the prepared document.</p></div><div class="row"><button onclick="tab('orders')">← Orders</button><button class="primary" onclick="window.print()">Print / Save PDF</button></div></div><div class="preview-surface"><article id="packingPaper" class="packingPaper"></article></div></section>
+</main>
 <script>
-let token=localStorage.getItem('csg_token')||sessionStorage.getItem('csg_token'),person='',chosen='',creating=false,version=0,data={items:[],orders:[]},activity=[],cart={};
-const $=id=>document.getElementById(id),escapeHtml=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-async function call(action,body={}){const r=await fetch('https://rqjjwtdswzljaeoxyorq.supabase.co/functions/v1/csg-inventory',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({action,token,...body})});let x=await r.json();if(!r.ok)throw Object.assign(Error(x.error||'Request failed'),{conflict:x.conflict,status:r.status});return x}
-function message(s,err=false,where='msg'){$(where).textContent=s;$(where).className='alert'+(err?' error':'')}
-function alertError(e){message(e.message||String(e),true);if(e.conflict)refresh()}
-async function startup(){
- try{const x=await call('employees');$('people').innerHTML=x.employees.map(u=>'<button onclick="choose(\''+u.name+'\','+u.registered+')">'+u.name+' · '+(u.registered?'Enter PIN':'Create PIN')+'</button>').join('')}catch(e){message(e.message,true,'authmsg')}
- if(token){try{await refresh();return}catch{token='';localStorage.removeItem('csg_token');sessionStorage.removeItem('csg_token')}}$('gate').classList.remove('hidden')
+'use strict';
+const API='https://rqjjwtdswzljaeoxyorq.supabase.co/functions/v1/csg-inventory';
+const $=id=>document.getElementById(id);
+const E=x=>String(x??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const titleCase=x=>String(x||'').trim().toLowerCase().replace(/\b[a-z]/g,c=>c.toUpperCase());
+const dateText=x=>{try{return new Date(x).toLocaleDateString(undefined,{month:'short',day:'numeric',year:'numeric'})}catch{return ''}};
+const dateTime=x=>{try{return new Date(x).toLocaleString()}catch{return ''}};
+const keyFor=(division,id)=>division+':'+id;
+let token=localStorage.getItem('csg_token')||sessionStorage.getItem('csg_token')||'';
+let staff='',selectedStaff='',newStaff=false,activeDivision='eiko',activeTab='eiko',editingDivision='eiko',stateVersion=0;
+let db={items:[],voltec:[],orders:[]},activities=[],cart={},liveBusy=false,selectedOrder=null;
+function inventoryOf(division){return division==='voltec'?(db.voltec||[]):(db.items||[])}
+function brandLabel(division){return division==='voltec'?'Voltec':'EiKO'}
+function alertMsg(msg,bad=false,target='flash'){let el=$(target);el.textContent=msg;el.className='alert'+(bad?' error':'');el.classList.remove('hidden')}
+function clearMsg(target='flash'){$(target).classList.add('hidden')}
+async function request(action,extra={}){
+ const res=await fetch(API,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({action,token,...extra}),cache:'no-store'});
+ let value;try{value=await res.json()}catch{throw Error('Server unavailable. Please retry.')}
+ if(!res.ok){let error=Error(value.error||'Could not complete request.');error.status=res.status;error.conflict=!!value.conflict;throw error}
+ return value;
 }
-function choose(n,registered){chosen=n;creating=!registered;$('people').classList.add('hidden');$('pinform').classList.remove('hidden');$('welcome').textContent=(creating?'Create PIN for ':'Welcome back, ')+n;$('confirmbox').classList.toggle('hidden',!creating);$('signin').textContent=creating?'Create PIN & continue':'Unlock Inventory';$('pin').value='';$('pin2').value='';$('pin').focus()}
-function back(){$('people').classList.remove('hidden');$('pinform').classList.add('hidden');$('authmsg').classList.add('hidden')}
-async function signIn(){try{const pin=$('pin').value;if(!/^\d{4}$/.test(pin))throw Error('Enter four digits');if(creating&&pin!==$('pin2').value)throw Error('PINs do not match');const remember=$('remember').checked;const x=await call(creating?'register':'login',{name:chosen,pin,remember});token=x.token;if(remember)localStorage.setItem('csg_token',token);else sessionStorage.setItem('csg_token',token);await refresh()}catch(e){message(e.message,true,'authmsg')}}
-async function refresh(){const x=await call('state');person=x.actor;version=x.version;data=x.content;activity=x.activity; $('gate').classList.add('hidden');$('app').classList.remove('hidden');$('who').textContent=person+' · Online';draw(); }
-async function logout(){try{await call('logout')}catch{}localStorage.removeItem('csg_token');sessionStorage.removeItem('csg_token');token='';person='';$('app').classList.add('hidden');$('gate').classList.remove('hidden');back();startup()}
-function tab(t){for(const id of ['inventory','order','orders','activity','edit'])$(id).classList.toggle('hidden',id!==t);if(t==='inventory')drawInventory();if(t==='orders')drawOrders();if(t==='activity')drawActivity();if(t==='order'){findParts();drawCart()}}
-function draw(){drawInventory();drawOrders();drawActivity();drawCart()}
-function drawInventory(){const items=data.items||[],q=$('search').value.toLowerCase();$('parts').textContent=items.length;$('units').textContent=items.reduce((n,x)=>n+x.qty,0).toLocaleString();$('low').textContent=items.filter(x=>x.qty<=x.min).length;$('rows').innerHTML=items.filter(x=>(x.part+' '+x.code).toLowerCase().includes(q)).sort((a,b)=>a.part.localeCompare(b.part)).map(x=>'<tr><td>'+escapeHtml(x.part)+'</td><td>'+escapeHtml(x.code||'—')+'</td><td><strong>'+x.qty+'</strong></td><td><button onclick="editPart('+x.id+')">Edit / Count</button></td></tr>').join('')}
-function editPart(id){let x=data.items.find(i=>i.id===id)||{id:0,part:'',code:'',qty:0,min:5,desc:''};$('editid').value=x.id;$('editpart').value=x.part;$('editcode').value=x.code;$('editqty').value=x.qty;$('editmin').value=x.min;$('editdesc').value=x.desc||'';$('edith').textContent=x.id?'Edit '+x.part:'Add new part';tab('edit')}
-async function change(op,payload){const x=await call('change',{version,op,payload});version=x.version;data=x.content;message('Saved to shared inventory. Updated by '+person);draw();return x}
-async function savePart(){try{await change('part',{id:Number($('editid').value),part:$('editpart').value,code:$('editcode').value,qty:Number($('editqty').value),min:Number($('editmin').value),desc:$('editdesc').value});tab('inventory')}catch(e){alertError(e)}}
-function findParts(){let q=$('findpart').value.toLowerCase();$('matches').innerHTML=!q?'':data.items.filter(x=>(x.part+' '+x.code).toLowerCase().includes(q)).slice(0,12).map(x=>'<div class="item"><span>'+escapeHtml(x.part)+' · '+x.qty+' available</span><button onclick="addCart('+x.id+')">Add</button></div>').join('')}
-function addCart(id){cart[id]=(cart[id]||0)+1;drawCart()}
-function removeCart(id){delete cart[id];drawCart()}
-function drawCart(){$('cart').innerHTML=Object.entries(cart).map(([id,qty])=>{const x=data.items.find(i=>i.id==id);return x?'<div class="item"><div>'+escapeHtml(x.part)+'<span class="muted"> · '+x.qty+' available</span></div><input type="number" min="1" value="'+qty+'" onchange="cart['+id+']=Number(this.value)"><button onclick="removeCart('+id+')">×</button></div>':''}).join('')||'<p class="muted">Search and add parts above.</p>'}
-async function submitOrder(){try{const [city,statezip]=$('city').value.split(',').map(x=>x?.trim()||'');await change('order',{customer:$('customer').value,job:$('job').value,street:$('street').value,city, state:statezip,notes:$('notes').value,lines:Object.entries(cart).map(([id,qty])=>({id:Number(id),qty}))});cart={};for(const id of ['customer','job','street','city','notes','findpart'])$(id).value='';tab('orders')}catch(e){alertError(e)}}
-function drawOrders(){$('orderlist').innerHTML=(data.orders||[]).map(o=>'<div class="panel"><div class="row" style="justify-content:space-between"><strong>'+escapeHtml(o.number)+'</strong><span class="status">'+escapeHtml(o.status||'confirmed')+'</span></div><p>'+escapeHtml(o.recipient)+' · '+escapeHtml(o.job||'')+'<br><small>'+escapeHtml(o.person)+' · '+new Date(o.created).toLocaleString()+'</small></p>'+o.lines.map(l=>'<div class="small">'+escapeHtml(l.part)+' · '+l.qty+'</div>').join('')+'<p><button onclick="printOrder(\''+o.id+'\')">Print Packing List</button> '+(o.status!=='cancelled'?'<button class="danger" onclick="cancelOrder(\''+o.id+'\')">Cancel & Restore Stock</button>':'')+'</p></div>').join('')||'<div class="panel">No orders yet.</div>'}
-async function cancelOrder(id){if(!confirm('Cancel this order and return every item to stock?'))return;try{await change('cancel',{id});tab('orders')}catch(e){alertError(e)}}
-function printOrder(id){let o=data.orders.find(x=>x.id===id);if(!o||o.status==='cancelled')return;let w=open('','_blank');if(!w){message('Allow popups to print',true);return}const rows=o.lines.map(x=>'<tr><td>'+escapeHtml(x.part)+'</td><td>'+escapeHtml(x.code)+'</td><td>'+x.qty+'</td></tr>').join('');w.document.write('<title>Packing List '+escapeHtml(o.number)+'</title><style>body{font:14px Arial;margin:35px}h1{margin-bottom:4px}table{border-collapse:collapse;width:100%}td,th{text-align:left;border-bottom:1px solid #aaa;padding:10px}</style><h2>CAHABA SALES GROUP</h2><h1>PACKING LIST</h1><p>'+escapeHtml(o.number)+' · '+new Date(o.created).toLocaleString()+'</p><p><b>SHIP TO:</b> '+escapeHtml(o.recipient)+'<br>'+escapeHtml(o.shipStreet)+'<br>'+escapeHtml(o.shipCity)+' '+escapeHtml(o.shipState)+'</p><p><b>JOB:</b> '+escapeHtml(o.job)+'<br><b>PULLED BY:</b> '+escapeHtml(o.person)+'</p><table><tr><th>Part</th><th>EiKO code</th><th>Qty</th></tr>'+rows+'</table><p>'+escapeHtml(o.notes||'')+'</p>');w.document.close();w.print()}
-function drawActivity(){$('loglist').innerHTML=activity.map(x=>'<div class="panel"><strong>'+escapeHtml(x.actor)+'</strong> · '+escapeHtml(x.action)+'<div class="muted">'+new Date(x.at).toLocaleString()+'</div><pre style="white-space:pre-wrap;overflow-wrap:anywhere">'+escapeHtml(JSON.stringify(x.details,null,2))+'</pre></div>').join('')||'<div class="panel">No changes recorded yet.</div>'}
-startup();setInterval(()=>{if(token&&!document.hidden&&$('edit').classList.contains('hidden'))refresh().catch(()=>{})},20000);
+function showLogin(){ $('app').classList.add('hidden');$('login').classList.remove('hidden');$('identityHeader').textContent='Secure shared inventory';}
+async function loadStaff(){
+ try{
+  const res=await request('employees');
+  $('people').innerHTML=res.employees.map(p=>'<button class="person" onclick="chooseStaff(\''+p.name+'\','+p.registered+')"><span>'+E(p.name)+'<small>'+(p.registered?'Enter your PIN':'First-time setup')+'</small></span><span>›</span></button>').join('');
+ }catch(error){alertMsg(error.message,true,'authError')}
+}
+function chooseStaff(name,registered){
+ selectedStaff=name;newStaff=!registered;
+ $('staffPicker').classList.add('hidden');$('pinStage').classList.remove('hidden');clearMsg('authError');
+ $('pinHeading').textContent=newStaff?'Set up '+name+'’s PIN':'Welcome, '+name;
+ $('pinHelp').textContent=newStaff?'Get a setup code from Cason, then choose your own 4-digit PIN.':'Enter your saved PIN. You will not need it again when switching tabs.';
+ $('inviteRow').classList.toggle('hidden',!newStaff);$('pinConfirmRow').classList.toggle('hidden',!newStaff);
+ $('signinButton').textContent=newStaff?'Create PIN & open inventory':'Unlock EiKO + Voltec';
+ $('userPin').value='';$('userPinConfirm').value='';$('inviteCode').value='';
+ $('userPin').focus();
+}
+function backStaff(){
+ $('staffPicker').classList.remove('hidden');$('pinStage').classList.add('hidden');clearMsg('authError');loadStaff();
+}
+async function signin(){
+ const pin=$('userPin').value,confirm=$('userPinConfirm').value;
+ try{
+  if(!/^\d{4}$/.test(pin))throw Error('PIN must be exactly four numbers.');
+  if(newStaff&&pin!==confirm)throw Error('The two PIN entries must match.');
+  if(newStaff&&!$('inviteCode').value.trim())throw Error('Enter your setup code from Cason.');
+  const btn=$('signinButton');btn.disabled=true;
+  try{
+   const remember=$('remember').checked;
+   const r=await request(newStaff?'register':'login',{name:selectedStaff,pin,remember,invite:$('inviteCode').value.trim().toUpperCase()});
+   token=r.token;
+   localStorage.removeItem('csg_token');sessionStorage.removeItem('csg_token');
+   if(remember)localStorage.setItem('csg_token',token);else sessionStorage.setItem('csg_token',token);
+   $('userPin').value='';$('userPinConfirm').value='';$('inviteCode').value='';
+   await refresh();
+  }finally{btn.disabled=false;}
+ }catch(error){alertMsg(error.message,true,'authError')}
+}
+async function refresh(manual=false){
+ if(liveBusy)return;
+ liveBusy=true;
+ try{
+  const r=await request('state');
+  staff=r.actor;stateVersion=r.version;db=r.content;activities=r.activity||[];
+  $('login').classList.add('hidden');$('app').classList.remove('hidden');
+  $('identityHeader').textContent=staff+' · Signed in';
+  $('nav-staff').classList.toggle('hidden',staff!=='Cason');
+  $('updatedLabel').textContent='Synced '+dateTime(r.updated_at);
+  renderAll();
+  if(manual)alertMsg('Inventory synced with the shared database.');
+ }catch(error){
+  if(error.status===401){token='';localStorage.removeItem('csg_token');sessionStorage.removeItem('csg_token');showLogin();loadStaff();if(manual)alertMsg('Session expired. Please sign in again.',true,'authError')}
+  else if(manual)alertMsg(error.message,true);
+  throw error;
+ }finally{liveBusy=false;}
+}
+async function signout(){
+ try{await request('logout')}catch{}
+ token='';localStorage.removeItem('csg_token');sessionStorage.removeItem('csg_token');
+ showLogin();backStaff();
+}
+function tab(name){
+ if(name==='staff'&&staff!=='Cason')return;
+ activeTab=name;
+ for(const id of ['inventorySection','partSection','orderSection','ordersSection','activitySection','staffSection','packingSection'])$(id).classList.add('hidden');
+ if(name==='eiko'||name==='voltec'){
+  activeDivision=name;$('inventorySection').classList.remove('hidden');renderInventory();
+ }else if(name==='part'){$('partSection').classList.remove('hidden')}
+ else if(name==='order'){$('orderSection').classList.remove('hidden');renderMatches();renderCart()}
+ else if(name==='orders'){$('ordersSection').classList.remove('hidden');renderOrders()}
+ else if(name==='activity'){$('activitySection').classList.remove('hidden');renderActivity()}
+ else if(name==='staff'){$('staffSection').classList.remove('hidden')}
+ else if(name==='packing'){$('packingSection').classList.remove('hidden')}
+ for(const name of ['eiko','voltec','order','orders','activity','staff'])$('nav-'+name).classList.toggle('active',name===activeTab);
+ clearMsg();
+ window.scrollTo({top:0,behavior:'instant'});
+}
+function renderAll(){
+ if(activeTab==='eiko'||activeTab==='voltec')renderInventory();
+ if(activeTab==='orders')renderOrders();
+ if(activeTab==='activity')renderActivity();
+ if(activeTab==='order'){renderMatches();renderCart()}
+ if(activeTab==='packing'&&selectedOrder)renderPacking(selectedOrder);
+}
+function renderInventory(){
+ const division=activeDivision,rows=inventoryOf(division),q=$('inventorySearch').value.trim().toLowerCase();
+ $('inventoryTitle').textContent=brandLabel(division)+' Inventory';
+ $('inventorySubtitle').textContent=division==='voltec'?'Separate Voltec stock. Available to all signed-in employees.':'Shared EiKO stock. Edits replace the old counts, not add to them.';
+ $('codeHeader').textContent=division==='voltec'?'Brand':'EiKO ordering code';
+ $('voltecSource').classList.toggle('hidden',division!=='voltec');
+ $('totalParts').textContent=rows.length;
+ $('totalUnits').textContent=rows.reduce((n,r)=>n+(Number(r.qty)||0),0).toLocaleString();
+ $('lowParts').textContent=rows.filter(r=>Number(r.qty)<=Number(r.min||0)).length;
+ $('inventoryRows').innerHTML=rows.filter(x=>(x.part+' '+(x.code||'')+' '+(x.desc||'')).toLowerCase().includes(q)).sort((a,b)=>String(a.part).localeCompare(String(b.part))).map(x=>
+ '<tr><td><strong>'+E(x.part)+'</strong>'+(x.desc?'<div class="muted">'+E(x.desc)+'</div>':'')+'</td><td>'+(division==='voltec'?'<span class="tag">VOLTEC</span>':E(x.code||'—'))+'</td><td><span class="num">'+Number(x.qty).toLocaleString()+'</span>'+(x.qty<=x.min?'<div class="muted">Low stock</div>':'')+'</td><td><button class="slim" onclick="openPart('+Number(x.id)+')">Edit / Count</button></td></tr>').join('')||'<tr><td colspan="4">No matching parts.</td></tr>';
+}
+function openPart(id){
+ editingDivision=activeDivision;
+ const x=inventoryOf(editingDivision).find(x=>x.id===id)||{id:0,part:'',code:'',qty:0,min:5,desc:''};
+ $('partHeading').textContent=(id?'Edit ':'Add ')+brandLabel(editingDivision)+' part';
+ $('editId').value=x.id;$('editPart').value=x.part;$('editCode').value=x.code||'';
+ $('editQty').value=x.qty;$('editMin').value=x.min||0;$('editDesc').value=x.desc||'';
+ $('codeField').classList.toggle('hidden',editingDivision==='voltec');
+ tab('part');
+}
+async function change(op,payload){
+ const response=await request('change',{op,payload,version:stateVersion});
+ stateVersion=response.version;db=response.content;
+ renderAll();
+ return response;
+}
+async function savePart(){
+ try{
+  const id=Number($('editId').value),qty=Number($('editQty').value),min=Number($('editMin').value),part=$('editPart').value.trim();
+  if(!part||!Number.isInteger(qty)||qty<0||!Number.isInteger(min)||min<0)throw Error('Enter a part number and valid whole-number quantities.');
+  await change('part',{division:editingDivision,id,part,code:$('editCode').value,qty,min,desc:$('editDesc').value});
+  activeDivision=editingDivision;tab(editingDivision);alertMsg('Updated '+brandLabel(editingDivision)+' stock. This is the new total, not an addition.');
+ }catch(error){alertMsg(error.message,true);if(error.conflict)refresh().catch(()=>{})}
+}
+function renderMatches(){
+ const q=$('orderSearch').value.trim().toLowerCase();
+ if(!q){$('orderMatches').innerHTML='<p class="sub">Search by a part number or SKU to add it to the order.</p>';return}
+ const found=[...inventoryOf('eiko').map(x=>({...x,division:'eiko'})),...inventoryOf('voltec').map(x=>({...x,division:'voltec'}))]
+ .filter(x=>(x.part+' '+(x.code||'')).toLowerCase().includes(q)).slice(0,15);
+ $('orderMatches').innerHTML=found.map(x=>'<div class="result"><div><strong>'+E(x.part)+'</strong> <span class="tag">'+brandLabel(x.division)+'</span><div class="muted">'+x.qty+' available'+(x.code?' · '+E(x.code):'')+'</div></div><button class="slim" onclick="addToCart(\''+x.division+'\','+x.id+')">+ Add</button></div>').join('')||'<p class="sub">No matching parts.</p>';
+}
+function addToCart(division,id){
+ const key=keyFor(division,id),item=inventoryOf(division).find(x=>x.id===id);if(!item)return;
+ if((cart[key]||0)>=item.qty){alertMsg('Not enough stock available for '+item.part,true);return}
+ cart[key]=(cart[key]||0)+1;renderCart();
+}
+function setCartQty(key,value){
+ const n=Number(value);if(!Number.isInteger(n)||n<=0){delete cart[key];renderCart();return}
+ cart[key]=n;renderCart();
+}
+function removeCart(key){delete cart[key];renderCart()}
+function renderCart(){
+ let total=0;
+ $('cartRows').innerHTML=Object.keys(cart).map(key=>{
+ const [division,id]=key.split(':'),x=inventoryOf(division).find(x=>x.id===Number(id)),qty=cart[key];
+ if(!x)return '';
+ total+=qty;
+ return '<div class="cart-row"><div class="cart-details"><strong>'+E(x.part)+'</strong><span class="tag" style="margin-left:8px">'+brandLabel(division)+'</span><div class="muted">'+x.qty+' available</div></div><input type="number" min="1" max="'+x.qty+'" inputmode="numeric" value="'+qty+'" aria-label="Quantity" onchange="setCartQty(\''+E(key)+'\',this.value)"><button class="slim danger" onclick="removeCart(\''+E(key)+'\')">×</button></div>';
+ }).join('')||'<p class="sub">No items selected.</p>';
+ $('cartTotal').textContent=total.toLocaleString()+' units';
+}
+async function placeOrder(){
+ try{
+  if(!Object.keys(cart).length)throw Error('Add items to the order first.');
+  const customer=titleCase($('orderCustomer').value),job=$('orderJob').value.trim();
+  if(!customer)throw Error('Customer / company is required.');
+  const lines=Object.entries(cart).map(([key,qty])=>{const [division,id]=key.split(':');return {division,id:Number(id),qty:Number(qty)}});
+  for(const l of lines){const x=inventoryOf(l.division).find(x=>x.id===l.id);if(!x||!Number.isSafeInteger(l.qty)||l.qty<1||l.qty>x.qty)throw Error('Check the selected quantities; some exceed available stock.')}
+  if(!confirm('Create this order and deduct '+lines.reduce((n,l)=>n+l.qty,0)+' units from shared inventory?'))return;
+  const btn=$('placeOrderButton');btn.disabled=true;
+  try{
+   await change('order',{customer,job,attention:titleCase($('orderAttention').value),street:titleCase($('orderStreet').value),city:titleCase($('orderCity').value),state:$('orderState').value.trim().toUpperCase(),zip:$('orderZip').value.trim(),notes:$('orderNotes').value,lines});
+   cart={};for(const id of ['orderCustomer','orderJob','orderAttention','orderStreet','orderCity','orderState','orderZip','orderNotes','orderSearch'])$(id).value='';
+   tab('orders');alertMsg('Order saved. Stock deducted and packing list ready to print.');
+  }finally{btn.disabled=false}
+ }catch(error){alertMsg(error.message,true);if(error.conflict)refresh().catch(()=>{})}
+}
+function renderOrders(){
+ const q=$('orderFilter').value.trim().toLowerCase();
+ $('ordersList').innerHTML=(db.orders||[]).filter(o=>(o.number+' '+o.recipient+' '+o.job+' '+o.person).toLowerCase().includes(q)).map(o=>
+ '<article class="card ordercard"><div class="row"><div><h3>'+E(o.number)+'</h3><span class="muted">'+dateTime(o.created)+' · '+E(o.person)+'</span></div><span class="badge'+(o.status==='cancelled'?' cancelled':'')+'">'+(o.status==='cancelled'?'Cancelled':'Confirmed')+'</span></div><p><strong>'+E(o.recipient)+'</strong>'+(o.job?' · '+E(o.job):'')+'</p><div class="small">'+(o.lines||[]).map(l=>'<div>'+E(l.part)+' <span class="tag">'+brandLabel(l.division)+'</span> × '+Number(l.qty)+'</div>').join('')+'</div><div class="row" style="margin-top:15px"><button class="slim" onclick="openPacking(\''+E(o.id)+'\')">View packing list</button>'+(o.status==='cancelled'?'':'<button class="slim danger" onclick="cancelOrder(\''+E(o.id)+'\')">Cancel & return stock</button>')+'</div></article>').join('')||'<div class="card">No orders found.</div>';
+}
+async function cancelOrder(id){
+ const o=(db.orders||[]).find(x=>x.id===id);if(!o)return;
+ if(!confirm('Cancel '+o.number+' and return all '+o.lines.reduce((n,l)=>n+Number(l.qty),0)+' units to their original EiKO / Voltec stock?'))return;
+ try{await change('cancel',{id});tab('orders');alertMsg('Order cancelled. All its stock was returned.')}catch(error){alertMsg(error.message,true);if(error.conflict)refresh().catch(()=>{})}
+}
+function openPacking(id){
+ const o=(db.orders||[]).find(x=>x.id===id);if(!o)return;
+ if(o.status==='cancelled'){alertMsg('A cancelled order cannot be printed as an active packing list.',true);return}
+ selectedOrder=id;renderPacking(id);tab('packing');
+}
+function renderPacking(id){
+ const o=(db.orders||[]).find(x=>x.id===id);if(!o)return;
+ const destCity=[titleCase(o.shipCity),String(o.shipState||'').toUpperCase()].filter(Boolean).map(E).join(', ');
+ const destLine=[destCity,E(o.shipZip||'')].filter(Boolean).join(' ');
+ const destParts=[o.recipient,o.shipAttention,o.shipStreet].filter(Boolean);
+ const dest=destParts.map((s,i)=>'<div'+(i===0?' class="address-title"':'')+'>'+E(i===0?s:titleCase(s))+'</div>').join('')+(destLine?'<div>'+destLine+'</div>':'')+(!o.shipStreet&&!destLine?'<div class="address-empty">Address not provided</div>':'');
+ const rows=(o.lines||[]).map((l,i)=>'<tr><td class="index">'+String(i+1).padStart(2,'0')+'</td><td><strong>'+E(l.part)+'</strong><div class="line-description">'+brandLabel(l.division)+(l.desc?' · '+E(l.desc):'')+'</div></td><td class="code">'+(E(l.code)||'—')+'</td><td class="qty">'+Number(l.qty)+'</td></tr>').join('');
+ const total=(o.lines||[]).reduce((n,l)=>n+Number(l.qty),0);
+ $('packingPaper').innerHTML=
+ '<header class="packing-head"><div class="paper-brand"><div class="paper-logo">CSG</div><div class="paper-company">CAHABA<br>SALES GROUP</div></div><div class="packing-title"><div class="paper-overline">WAREHOUSE DOCUMENT</div><h2>PACKING LIST</h2><div class="paper-id">'+E(o.number)+'</div></div></header>'
+ +'<div class="packing-line"></div><div class="packing-meta"><div><span>ORDER NUMBER</span><strong>'+E(o.number)+'</strong></div><div><span>DATE PREPARED</span><strong>'+dateText(o.created)+'</strong></div><div><span>JOB / PROJECT</span><strong>'+E(o.job||'—')+'</strong></div><div><span>PREPARED BY</span><strong>'+E(o.person||'—')+'</strong></div></div>'
+ +'<div class="address-grid"><div class="address-card"><div class="address-label">SHIP FROM</div><div class="address-title">Cahaba Sales Group</div><div>113 45th Place North</div><div>Birmingham, AL 35222</div></div><div class="address-card"><div class="address-label">SHIP TO</div>'+dest+'</div></div>'
+ +'<div class="packing-table-title"><h3>ORDER CONTENTS</h3><span>'+o.lines.length+' part number'+(o.lines.length===1?'':'s')+'</span></div>'
+ +'<table class="paper-table"><thead><tr><th class="index">#</th><th>PART NUMBER / DESCRIPTION</th><th class="code">ORDER CODE / SKU</th><th class="qty">QTY</th></tr></thead><tbody>'+rows+'</tbody></table>'
+ +'<div class="packing-total"><div class="linecount">'+o.lines.length+' LINE ITEM'+(o.lines.length===1?'':'S')+'</div><div class="units"><span>TOTAL UNITS</span><strong>'+total+'</strong></div></div>'
+ +(o.notes?'<div class="paper-notes"><strong>DELIVERY / HANDLING NOTES</strong>'+E(o.notes)+'</div>':'')
+ +'<div class="paper-footer"><span>CAHABA SALES GROUP · WAREHOUSE OPERATIONS</span><span>'+E(o.number)+'</span></div>';
+}
+function renderActivity(){
+ const q=$('activityFilter').value.trim().toLowerCase();
+ $('activityRows').innerHTML=activities.filter(x=>(x.actor+' '+x.action+' '+JSON.stringify(x.details||{})).toLowerCase().includes(q)).map(x=>
+ '<div class="card" style="margin:8px 0"><div class="row" style="justify-content:space-between"><strong>'+E(x.actor)+' · '+E(x.action)+'</strong><span class="muted">'+dateTime(x.at)+'</span></div><div class="small muted" style="margin-top:5px;overflow-wrap:anywhere">'+E(JSON.stringify(x.details||{}))+'</div></div>').join('')||'<div class="card">No activity matches.</div>';
+}
+async function issueInvite(){
+ const name=$('inviteStaff').value;
+ if(!name){alertMsg('Select an employee.',true);return}
+ try{
+  const x=await request('invite',{name});
+  const box=$('inviteResult');box.classList.remove('hidden');
+  box.innerHTML='<p><strong>'+E(x.name)+'’s setup code</strong></p><p><code class="mono" id="generatedCode">'+E(x.code)+'</code></p><p class="sub">Expires '+dateTime(x.expires_at)+'. Send this code privately to '+E(x.name)+'. They only need it once when creating their PIN.</p><button class="slim" onclick="copyInvite()">Copy code</button>';
+  alertMsg('Setup code created. Share it privately with the employee.');
+ }catch(error){alertMsg(error.message,true)}
+}
+async function copyInvite(){try{await navigator.clipboard.writeText($('generatedCode').textContent);alertMsg('Setup code copied.')}catch{alertMsg('Copy the code shown above.',true)}}
+for(const id of ['orderCustomer','orderAttention','orderStreet','orderCity'])$(id).addEventListener('blur',function(){this.value=titleCase(this.value)});
+$('orderState').addEventListener('blur',function(){this.value=this.value.trim().toUpperCase()});
+async function start(){
+ await loadStaff();
+ if(token){try{await refresh();return}catch{}}
+ showLogin();
+}
+document.addEventListener('visibilitychange',()=>{if(!document.hidden&&token)refresh().catch(()=>{})});
+setInterval(()=>{if(token&&!document.hidden&&activeTab!=='part'&&activeTab!=='order'&&activeTab!=='packing')refresh().catch(()=>{})},30000);
+start();
 </script></body></html>
