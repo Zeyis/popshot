@@ -5,7 +5,8 @@
 .bj-badge{display:inline-flex;align-items:center;justify-content:center;background:#c93b27;color:white;border-radius:50px;padding:1px 7px;min-width:21px;height:20px;font-size:11px;margin-left:6px}
 .bj-card{background:#fff;border:1px solid #e3e5df;border-radius:12px;padding:16px;margin:13px 0}
 .bj-joke{text-align:center;border:1px solid #e6d685;background:#fffbea;padding:14px;border-radius:13px;margin:0 0 20px}
-.bj-joke .weight{font-size:35px;font-weight:900;line-height:1.3;color:#342f24}
+.bj-joke .bj-joke-question{font-weight:800;font-size:15px;margin-bottom:10px}
+.bj-joke .bj-weight-display{display:block;width:min(100%,230px);margin:0 auto 9px;padding:10px 14px;min-height:54px;line-height:32px;background:#fff;border:1px solid #bdc6c0;border-radius:8px;box-shadow:inset 0 1px 2px #1b26320d;text-align:center;color:#262d2d;font-size:24px;font-weight:850;cursor:default;user-select:none;pointer-events:none}
 .bj-joke .punchline{font-weight:750;font-size:13px;color:#765f32}
 .bj-fixed{padding:10px 13px;background:#f1f2ed;border:1px solid #e4e7df;border-radius:8px;font-weight:700;min-height:41px}
 .bj-lines-wrap{overflow-x:auto}
