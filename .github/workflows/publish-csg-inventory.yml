@@ -40,6 +40,11 @@ jobs:
           node .github/scripts/test-receiving.js
           node --check csg-inventory/bj.js
           node .github/scripts/test-bj.js
+          node --check csg-inventory/bj-pdf.js
+      - name: Test filled original Magic City Supply PDF
+        run: |
+          npm install --prefix /tmp/csg-pdf-test --no-save --no-audit --no-fund pdf-lib@1.17.1
+          NODE_PATH=/tmp/csg-pdf-test/node_modules node .github/scripts/test-bj-original-pdf.js
       - name: Smoke test BJ ordering and official EiKO product search
         run: node .github/scripts/test-bj-services.js
       - name: Configure Pages
