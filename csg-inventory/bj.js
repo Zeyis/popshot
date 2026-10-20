@@ -121,7 +121,8 @@ async function bjSubmit(){
  const lines=bjLines.filter(l=>l.part||l.code||l.qty||l.location);
  if(!lines.length){bjToast('Add at least one EiKO item.',true);return}
  for(let i=0;i<lines.length;i++){
-  if(!lines[i].part&&!lines[i].code){bjToast('Line '+(i+1)+': enter a part number or ordering code.',true);return}
+  if(!String(lines[i].code||'').trim()){bjToast('Line '+(i+1)+': enter the EiKO ordering code.',true);return}
+  if(!String(lines[i].location||'').trim()){bjToast('Line '+(i+1)+': enter its warehouse location.',true);return}
   if(!Number.isSafeInteger(Number(lines[i].qty))||Number(lines[i].qty)<=0){bjToast('Line '+(i+1)+': enter a positive whole-number quantity.',true);return}
  }
  const body={...bjFormState(),lines,id:bjEditingId};
@@ -177,6 +178,7 @@ function bjShowPrint(id){
 function bjGoBack(){tab('bj');bjField('bjOrderQueue')?.scrollIntoView({behavior:'smooth'})}
 function bjRender(){
  if(!bjFormLoaded)bjRestoreDraft();
+ const importer=bjField('bjImporter');if(importer)importer.classList.toggle('hidden',staff!=='Cason'&&staff!=='Brent');
  bjQueueUI();
 }
 function bjSearchDelayed(){
@@ -203,7 +205,7 @@ function bjParseCSV(raw){
  const rows=[],out=[];let fields=[],value='',quoted=false;
  for(let i=0;i<raw.length;i++){
   const c=raw[i];if(quoted){if(c==='"'&&raw[i+1]==='"'){value+='"';i++;}else if(c==='"')quoted=false;else value+=c}
-  else if(c==='"')quoted=true;else if(c===','||c==='\\t'){fields.push(value);value=''}
+  else if(c==='"')quoted=true;else if(c===','||c==='\t'){fields.push(value);value=''}
   else if(c==='\n'||c==='\r'){fields.push(value);if(fields.some(f=>f.trim()))rows.push(fields);fields=[];value='';if(c==='\r'&&raw[i+1]==='\n')i++}
   else value+=c;
  }
@@ -245,7 +247,6 @@ function bjInit(){
  if(!bjField('bjAlert'))return;
  const link=bjField('bjOfficialLink');
  link.href='https://www.eiko.com/search';
- bjField('bjOfficialLinkSmall').href='https://www.eiko.com/search';
  const importBox=bjField('bjImporter');
  if(importBox)importBox.classList.toggle('hidden',staff!=='Cason'&&staff!=='Brent');
  if(token)bjPoll().catch(()=>{});
