@@ -1,0 +1,28 @@
+const fs=require('node:fs');
+const assert=require('node:assert/strict');
+const crypto=require('node:crypto');
+const PDFLib=require('pdf-lib');
+globalThis.PDFLib=PDFLib;
+const {bjFillOriginalPDF}=require('../../csg-inventory/bj-pdf.js');
+(async()=>{
+ const b64=fs.readFileSync('csg-inventory/magic-city-po-template.base64','utf8').trim();
+ const base=Buffer.from(b64,'base64');
+ assert(base.subarray(0,8).toString('binary').startsWith('%PDF-1.4'));
+ const actualHash=crypto.createHash('sha256').update(base).digest('hex');
+ assert.equal(actualHash,'861554a84959cd4b1958c7263da780623bfe3f02a5f2abb0f63789880b18ac23','Must use original uploaded PDF template bytes, not a substitute');
+ const original=await PDFLib.PDFDocument.load(base);
+ assert.equal(original.getPageCount(),1);
+ const mock={po_number:'RNG-261020-ABCDE',order_date:'2026-10-20',buyer:'Brent',vendor_address:'',
+ ship_to_address:'',ship_via:'',terms:'',fob:'',date_required:null,
+ lines:[{qty:5,part:'SEN5A-SPPR-WH',code:'13861',description:'Ceiling sensor',location:'1-6-A2',per:'EA',price:null}]};
+ const single=await bjFillOriginalPDF(mock,base);
+ const one=await PDFLib.PDFDocument.load(single);
+ assert.equal(one.getPageCount(),1,'One item must generate exactly ONE page');
+ assert.equal(one.getPages()[0].getWidth(),612,'Use original letter-page width');
+ assert.equal(one.getPages()[0].getHeight(),792,'Use original letter-page height');
+ mock.lines=Array.from({length:22},(_,i)=>({...mock.lines[0],part:'PART-'+i,code:String(10000+i)}));
+ assert.equal((await PDFLib.PDFDocument.load(await bjFillOriginalPDF(mock,base))).getPageCount(),1,'22 items fit on one original template page');
+ mock.lines.push({...mock.lines[0],part:'PART-23'});
+ assert.equal((await PDFLib.PDFDocument.load(await bjFillOriginalPDF(mock,base))).getPageCount(),2,'23 items create exactly two pages');
+ console.log('Original Magic City Supply PDF template SHA verified; 1, 22 and 23 line page counts passed.');
+})().catch(e=>{console.error(e);process.exitCode=1;});
