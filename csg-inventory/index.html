@@ -83,10 +83,10 @@
 <div class="section-head"><div><h1>BJ Mode · Walk-in EiKO requests</h1><p class="sub">Walk the warehouse with BJ, find what he wants, and capture every item for Brent to order.</p></div><button onclick="bjResetForm()">+ New BJ Request</button></div>
 <div class="bj-joke"><div class="bj-joke-question">How much did BJ weigh today?</div><div class="bj-weight-display" role="textbox" aria-readonly="true" aria-label="BJ's weight, fixed at 155">155</div><div class="punchline">Awh hell.</div></div>
 <div id="bjStatus" class="alert hidden" role="status"></div>
-<div class="card"><h2 style="margin:0 0 8px;font-size:18px">Purchase order details</h2><div class="note">This form records BJ's selections and alerts the team. It does <strong>not</strong> place a supplier order or change any EiKO inventory quantities.</div>
+<div class="card"><h2 style="margin:0 0 8px;font-size:18px">Purchase order details</h2><div class="note">BJ requests fill the <strong>Magic City Supply PDF</strong> you provided. The form always ships <strong>from Cahaba Sales Group</strong> to Magic City Supply, with EiKO as the vendor. It does not place a supplier order or change stock.</div>
 <div class="grid2"><div><label>From</label><div class="bj-fixed">Cahaba Sales Group</div></div><div><label>Vendor</label><div class="bj-fixed">EiKO</div></div>
 <div><label>PO number</label><div class="bj-fixed" id="bjEditLabel">RNG — generated on submit</div></div><div><label>Order date</label><div class="bj-fixed">Automatically set when submitted</div></div>
-<div><label>Ship to</label><div class="bj-fixed">Cahaba Sales Group</div></div><div><label>Ship to address</label><div class="bj-fixed">113 45th Place North, Birmingham, AL 35222</div></div>
+<div><label>Ship to</label><div class="bj-fixed">Magic City Supply</div></div><div><label>Ship to address (optional)</label><input id="bjShipToAddress" oninput="bjSaveLocal()" placeholder="Magic City Supply delivery address"></div>
 <div><label>Buyer</label><input id="bjBuyer" value="Brent" oninput="bjSaveLocal()"></div><div><label>Vendor address (optional)</label><input id="bjVendorAddress" oninput="bjSaveLocal()" placeholder="EiKO billing / vendor address"></div>
 <div><label>Ship via (optional)</label><input id="bjShipVia" oninput="bjSaveLocal()" placeholder="Courier / pickup / freight"></div>
 <div><label>F.O.B. (optional)</label><input id="bjFOB" oninput="bjSaveLocal()"></div>
@@ -108,8 +108,8 @@
 <div class="muted" id="bjQueueError"></div><div id="bjQueueList"></div></div>
 </section>
 <section id="bjPrintSection" class="hidden">
-<div class="preview-toolbar"><div><h1 style="margin:0">BJ Purchase Order</h1><p class="sub">PO <span id="bjPrintLabel"></span> · prepared for Brent to view and print.</p></div><div class="row"><button onclick="bjGoBack()">← BJ Mode</button><button class="primary" onclick="window.print()">Print / Save PDF</button></div></div>
-<div class="preview-surface" id="bjPrintPaper"></div>
+<div class="preview-toolbar"><div><h1 style="margin:0">BJ Purchase Order</h1><p class="sub">PO <span id="bjPrintLabel"></span> · prepared for Brent to view and print.</p></div><div class="row"><button onclick="bjGoBack()">← BJ Mode</button><button class="primary" onclick="bjExportOriginalPDF(false)">Open Original PDF / Print</button><button onclick="bjExportOriginalPDF(true)">Download Filled PDF</button></div></div>
+<div id="bjPDFStatus" class="sub" role="status"></div><div class="preview-surface" id="bjPrintPaper"></div>
 </section>
 <section id="activitySection" class="hidden"><div class="section-head"><h1>Warehouse activity</h1><input id="activityFilter" oninput="renderActivity()" placeholder="Search employee, part, job" style="max-width:320px"></div><div id="activityRows"></div></section>
 <section id="packingSection" class="hidden"><div class="preview-toolbar"><div><h1 style="margin:0">Packing list</h1><p class="sub" style="margin:3px 0">Preview and print the prepared document.</p></div><div class="row"><button onclick="tab('orders')">← Orders</button><button class="primary" onclick="window.print()">Print / Save PDF</button></div></div><div class="preview-surface"><article id="packingPaper" class="packingPaper"></article></div></section>
@@ -347,4 +347,4 @@ async function start(){
 document.addEventListener('visibilitychange',()=>{if(!document.hidden&&token)refresh().catch(()=>{})});
 setInterval(()=>{if(token&&!document.hidden&&activeTab!=='part'&&activeTab!=='order'&&activeTab!=='packing'&&activeTab!=='bj'&&activeTab!=='bjprint')refresh().catch(()=>{})},30000);
 start();
-</script><script src="receiving-ocr.js"></script><script src="receiving.js"></script><script src="bj.js"></script></body></html>
+</script><script src="receiving-ocr.js"></script><script src="receiving.js"></script><script src="bj-pdf.js"></script><script src="bj.js"></script></body></html>
