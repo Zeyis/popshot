@@ -31,7 +31,7 @@ function bjRestoreDraft(){
  bjRenderLines();
 }
 function bjAssignFields(record={}){
- bjField('bjBuyer').value=record.buyer||'Brent';
+ bjField('bjBuyer').value=record.buyer||'';
  bjField('bjShipVia').value=record.shipVia||record.ship_via||'';
  bjField('bjFOB').value=record.fob||'';
  bjField('bjTerms').value=record.terms||'';
@@ -143,40 +143,10 @@ async function bjDismiss(id){
  try{await bjApi('dismiss',{id});await bjPoll();bjToast('BJ alert dismissed. The order remains in history.')}
  catch(e){bjToast(e.message,true)}
 }
-const BJ_PO_LINES_PER_PAGE=22;
-function bjPOBody(o){
- const rows=o.lines||[],pages=Math.max(1,Math.ceil(rows.length/BJ_PO_LINES_PER_PAGE));
- const field=(label,value)=>'<div><div class="lbl">'+label+'</div><div class="field">'+(bjEsc(value)||'&nbsp;')+'</div></div>';
- const result=[];
- for(let page=0;page<pages;page++){
-  const slice=rows.slice(page*BJ_PO_LINES_PER_PAGE,(page+1)*BJ_PO_LINES_PER_PAGE);
-  const cells=slice.map((l,i)=>{
-    const secondary=[l.code?'EIKO CODE: '+l.code:'',l.description||''].filter(Boolean).join(' · ');
-    const price=l.price==null||l.price===''?'':Number(l.price).toFixed(2);
-    return '<tr><td class="bj-col-n">'+(page*BJ_PO_LINES_PER_PAGE+i+1)+'</td><td class="bj-col-qty">'+bjEsc(l.qty??'')+'</td>'
-    +'<td class="bj-col-stock"><strong>'+bjEsc(l.part||l.code||'')+'</strong>'+(secondary?'<div class="bj-part-description">'+bjEsc(secondary)+'</div>':'')+'</td>'
-    +'<td class="bj-col-price">'+bjEsc(price)+'</td><td class="bj-col-per">'+bjEsc(l.per||'')+'</td><td class="bj-col-location">'+bjEsc(l.location||'')+'</td></tr>';
-  }).join('');
-  const address=(o.ship_to_address||'').includes('113 45th Place North')?'':(o.ship_to_address||'');
-  result.push('<article class="packingPaper bj-paper"'+(page<pages-1?' style="break-after:page;page-break-after:always"':'')+'>'
-   +'<div class="bj-paper-header"><div><div class="bj-brand-header">MAGIC CITY SUPPLY</div><div class="bj-brand-subtitle">PURCHASE ORDER</div><div class="bj-shipfrom">SHIP FROM: CAHABA SALES GROUP</div></div>'
-   +'<div class="bj-paper-title"><div class="paper-overline">PO NUMBER</div><div class="bj-paper-code">'+bjEsc(o.po_number)+'</div>'+(pages>1?'<div class="muted">Page '+(page+1)+' of '+pages+'</div>':'')+'</div></div>'
-   +'<div class="bj-paper-rule"></div>'
-   +'<div class="bj-paper-info">'+field('Vendor','EiKO')+field('Order date',dateText(o.order_date))
-   +field('Vendor address',o.vendor_address)+field('Ship to','Magic City Supply')
-   +'<div style="grid-column:1/3">'+field('Ship to address',address)+'</div></div>'
-   +'<div class="bj-paper-four">'+field('Ship via',o.ship_via)+field('F.O.B.',o.fob)+field('Terms',o.terms)+field('Date required',o.date_required?dateText(o.date_required):'')+'</div>'
-   +'<table class="bj-paper-table"><thead><tr><th class="bj-col-n">#</th><th class="bj-col-qty">QTY</th><th class="bj-col-stock">STOCK NUMBER / DESCRIPTION</th><th class="bj-col-price">PRICE</th><th class="bj-col-per">PER</th><th class="bj-col-location">LOCATION</th></tr></thead><tbody>'+cells+'</tbody></table>'
-   +(o.notes?'<div class="bj-paper-note">'+bjEsc(o.notes)+'</div>':'')
-   +'<div class="bj-paper-footer"><span>Order number must appear on invoices, packages, and correspondence.</span><strong>BUYER: '+bjEsc(o.buyer||'Brent')+'</strong></div>'
-   +'<div class="bj-bottom-brand">MAGIC CITY SUPPLY | PURCHASE ORDER</div></article>');
- }
- return result.join('');
-}
 function bjShowPrintObject(o){
  bjCurrentPrintID=o.id;
  bjCurrentPrintOrder=o;
- bjField('bjPrintPaper').innerHTML=bjPOBody(o);
+ bjPreviewOriginalPDF(o);
  bjField('bjPrintLabel').textContent=o.po_number;
  tab('bjprint');
 }
