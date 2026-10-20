@@ -87,7 +87,7 @@
 <div class="grid2"><div><label>From</label><div class="bj-fixed">Cahaba Sales Group</div></div><div><label>Vendor</label><div class="bj-fixed">EiKO</div></div>
 <div><label>PO number</label><div class="bj-fixed" id="bjEditLabel">RNG — generated on submit</div></div><div><label>Order date</label><div class="bj-fixed">Automatically set when submitted</div></div>
 <div><label>Ship to</label><div class="bj-fixed">Magic City Supply</div></div><div><label>Ship to address (optional)</label><input id="bjShipToAddress" oninput="bjSaveLocal()" placeholder="Magic City Supply delivery address"></div>
-<div><label>Buyer</label><input id="bjBuyer" value="Brent" oninput="bjSaveLocal()"></div><div><label>Vendor address (optional)</label><input id="bjVendorAddress" oninput="bjSaveLocal()" placeholder="EiKO billing / vendor address"></div>
+<div><label>Buyer (optional — not Brent by default)</label><input id="bjBuyer" placeholder="Actual Magic City Supply buyer, if known" oninput="bjSaveLocal()"></div><div><label>Vendor address (optional)</label><input id="bjVendorAddress" oninput="bjSaveLocal()" placeholder="EiKO billing / vendor address"></div>
 <div><label>Ship via (optional)</label><input id="bjShipVia" oninput="bjSaveLocal()" placeholder="Courier / pickup / freight"></div>
 <div><label>F.O.B. (optional)</label><input id="bjFOB" oninput="bjSaveLocal()"></div>
 <div><label>Terms (optional)</label><input id="bjTerms" oninput="bjSaveLocal()"></div>
@@ -108,8 +108,8 @@
 <div class="muted" id="bjQueueError"></div><div id="bjQueueList"></div></div>
 </section>
 <section id="bjPrintSection" class="hidden">
-<div class="preview-toolbar"><div><h1 style="margin:0">BJ Purchase Order</h1><p class="sub">PO <span id="bjPrintLabel"></span> · prepared for Brent to view and print.</p></div><div class="row"><button onclick="bjGoBack()">← BJ Mode</button><button class="primary" onclick="bjExportOriginalPDF(false)">Open Original PDF / Print</button><button onclick="bjExportOriginalPDF(true)">Download Filled PDF</button></div></div>
-<div id="bjPDFStatus" class="sub" role="status"></div><div class="preview-surface" id="bjPrintPaper"></div>
+<div class="preview-toolbar"><div><h1 style="margin:0">BJ Purchase Order</h1><p class="sub">PO <span id="bjPrintLabel"></span> · your original Magic City Supply PDF, with only the requested items.</p></div><div class="row"><button onclick="bjGoBack()">← BJ Mode</button><button class="primary" onclick="bjExportOriginalPDF(false)">Open Original PDF / Print</button><button onclick="bjExportOriginalPDF(true)">Download Filled PDF</button></div></div>
+<div id="bjPDFStatus" class="sub" role="status"></div><div class="preview-surface" id="bjPrintPaper"><div class="card">Preparing the original Magic City PDF…</div></div>
 </section>
 <section id="activitySection" class="hidden"><div class="section-head"><h1>Warehouse activity</h1><input id="activityFilter" oninput="renderActivity()" placeholder="Search employee, part, job" style="max-width:320px"></div><div id="activityRows"></div></section>
 <section id="packingSection" class="hidden"><div class="preview-toolbar"><div><h1 style="margin:0">Packing list</h1><p class="sub" style="margin:3px 0">Preview and print the prepared document.</p></div><div class="row"><button onclick="tab('orders')">← Orders</button><button class="primary" onclick="window.print()">Print / Save PDF</button></div></div><div class="preview-surface"><article id="packingPaper" class="packingPaper"></article></div></section>
