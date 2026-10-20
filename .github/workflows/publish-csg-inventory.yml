@@ -39,8 +39,8 @@ jobs:
           node .github/scripts/test-receiving.js
           node --check csg-inventory/bj.js
           node .github/scripts/test-bj.js
-      - name: Check public EiKO catalog feed (diagnostic)
-        run: node .github/scripts/probe-eiko-catalog.js
+      - name: Smoke test BJ ordering and official EiKO product search
+        run: node .github/scripts/test-bj-services.js
       - name: Configure Pages
         uses: actions/configure-pages@v5
         with:
@@ -54,4 +54,3 @@ jobs:
         uses: actions/deploy-pages@v4
 # retry deployment after enabling Pages
 
-# public EiKO lookup diagnostic schema pass
