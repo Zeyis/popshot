@@ -36,77 +36,120 @@ function bjPdfDate(value){
  if(parts.length===3&&parts[0].length===4)return Number(parts[1])+'/'+Number(parts[2])+'/'+parts[0];
  return bjPdfClean(value);
 }
+
+/* Keep the actual supplied Magic City Supply vector template, but physically
+   shorten the page after the last filled row. One part => one short PDF page.
+   Up to 22 parts per physical page. No artificial HTML table or empty rows. */
 async function bjFillOriginalPDF(order,templateBytes){
  const {PDFDocument,StandardFonts,rgb}=await bjPdfLoadLibrary();
- const inputPDF=await PDFDocument.load(templateBytes);
- const resultPDF=await PDFDocument.create();
- const normal=await resultPDF.embedFont(StandardFonts.Helvetica);
- const bold=await resultPDF.embedFont(StandardFonts.HelveticaBold);
- const dark=rgb(.11,.21,.30),medium=rgb(.35,.46,.54),rule=rgb(.77,.81,.84),white=rgb(1,1,1);
- const rows=Array.isArray(order.lines)?order.lines:[];
- const pageCount=Math.max(1,Math.ceil(rows.length/22));
- for(let pageIndex=0;pageIndex<pageCount;pageIndex++){
-  const [page]=await resultPDF.copyPages(inputPDF,[0]);
-  resultPDF.addPage(page);
-  const height=page.getHeight();
-  const top=(y)=>height-y;
-  function put(x,topPos,value,options={}){
-   const raw=bjPdfClean(value);if(!raw)return;
-   const font=options.bold?bold:normal;
-   const defaultSize=options.size||8.5;
-   const maxWidth=options.width||250;
-   let size=defaultSize;
-   while(size>5.2&&font.widthOfTextAtSize(raw,size)>maxWidth)size-=.3;
-   let output=raw;
-   if(font.widthOfTextAtSize(output,size)>maxWidth){
-    while(output.length>4&&font.widthOfTextAtSize(output+'...',size)>maxWidth)output=output.slice(0,-1);
-    output+='...';
+ const original=await PDFDocument.load(templateBytes);
+ const srcPage=original.getPage(0);
+ const output=await PDFDocument.create();
+ const regular=await output.embedFont(StandardFonts.Helvetica);
+ const bold=await output.embedFont(StandardFonts.HelveticaBold);
+ const navy=rgb(.11,.21,.30),muted=rgb(.35,.46,.54),white=rgb(1,1,1);
+ const lines=Array.isArray(order.lines)?order.lines:[];
+ if(!lines.length)throw Error('This BJ request does not contain any item lines.');
+ const maxRows=22,headHeight=307,rowHeight=19,footerHeight=67,sourceHeight=792,sourceWidth=612;
+ for(let offset=0;offset<lines.length;offset+=maxRows){
+  const visible=lines.slice(offset,offset+maxRows);
+  const n=visible.length;
+  const height=headHeight+n*rowHeight+footerHeight;
+  const page=output.addPage([sourceWidth,height]);
+  const [topGraphic,rowGraphic,footerGraphic]=await output.embedPages(
+   [srcPage,srcPage,srcPage],
+   [
+    {left:0,bottom:sourceHeight-headHeight,right:sourceWidth,top:sourceHeight},
+    {left:0,bottom:sourceHeight-headHeight-n*rowHeight,right:sourceWidth,top:sourceHeight-headHeight},
+    {left:0,bottom:0,right:sourceWidth,top:footerHeight}
+   ]
+  );
+  page.drawPage(topGraphic,{x:0,y:footerHeight+n*rowHeight,width:sourceWidth,height:headHeight});
+  page.drawPage(rowGraphic,{x:0,y:footerHeight,width:sourceWidth,height:n*rowHeight});
+  page.drawPage(footerGraphic,{x:0,y:0,width:sourceWidth,height:footerHeight});
+  const top=y=>height-y;
+  function put(x,y,value,{size=8.5,width=240,boldText=false,align='left',color=navy}={}){
+   const raw=bjPdfClean(value);
+   if(!raw)return;
+   const font=boldText?bold:regular;
+   let s=size,display=raw;
+   while(s>5.2&&font.widthOfTextAtSize(display,s)>width)s-=0.3;
+   if(font.widthOfTextAtSize(display,s)>width){
+    while(display.length>4&&font.widthOfTextAtSize(display+'...',s)>width)display=display.slice(0,-1);
+    display+='...';
    }
-   let xPos=x;
-   if(options.align==='right')xPos=x-font.widthOfTextAtSize(output,size);
-   page.drawText(output,{x:xPos,y:top(topPos),font,size,color:options.color||dark});
+   const drawX=align==='right'?x-font.widthOfTextAtSize(display,s):x;
+   page.drawText(display,{x:drawX,y:top(y),font,size:s,color});
   }
-  // The original title reads MAGIC CITY SUPPLY. No Cahaba logo is added.
-  put(414,96,order.po_number,{size:11,bold:true,width:146});
-  put(159,98,'SHIP FROM: CAHABA SALES GROUP',{size:7,bold:true,width:239});
-  put(40,125,'EiKO',{size:9,bold:true,width:260});
-  put(314,125,bjPdfDate(order.order_date),{size:9,width:235});
-  put(40,186,order.vendor_address||'',{size:8.5,width:266});
-  put(314,186,'Magic City Supply',{size:9,bold:true,width:250});
-  const oldAddress='113 45th Place North, Birmingham, AL 35222';
-  const recipientAddress=order.ship_to_address===oldAddress?'':(order.ship_to_address||'');
-  put(40,219,recipientAddress,{size:8.5,width:523});
-  put(40,247,order.ship_via||'',{size:8.2,width:119});
-  put(175,247,order.fob||'',{size:8.2,width:119});
-  put(307,247,order.terms||'',{size:8.2,width:119});
-  put(439,247,bjPdfDate(order.date_required),{size:8.2,width:119});
-  const onPage=rows.slice(pageIndex*22,(pageIndex+1)*22);
-  for(let i=0;i<onPage.length;i++){
-   const l=onPage[i],rowTop=309+19*i;
-   put(139,rowTop+12,l.qty,{size:9,bold:true,width:63,align:'right'});
-   const primary=bjPdfClean(l.part||l.code);
-   put(150,rowTop+8.9,primary,{size:8.2,bold:true,width:229});
-   const desc=[l.code?'EiKO CODE: '+l.code:'',l.description||''].filter(Boolean).join('  |  ');
-   put(150,rowTop+16.1,desc,{size:6.4,width:229,color:medium});
+  // Same positions used by the supplied printed PDF. The original Magic City
+  // title is left untouched; no Cahaba logo is ever inserted in BJ documents.
+  put(414,96,order.po_number||'RNG',{size:9.4,width:143,boldText:true});
+  put(159,98,'SHIP FROM: CAHABA SALES GROUP',{size:7.0,width:235,boldText:true});
+  put(40,125,'EiKO',{size:9,width:260,boldText:true});
+  put(314,125,bjPdfDate(order.order_date),{size:9,width:220});
+  put(40,186,order.vendor_address||'',{size:8.5,width:260});
+  put(314,186,order.ship_to||'Magic City Supply',{size:9,width:240,boldText:true});
+  const obsolete='113 45th Place North, Birmingham, AL 35222';
+  const destination=order.ship_to_address===obsolete?'':(order.ship_to_address||'');
+  put(40,219,destination,{size:8.4,width:530});
+  put(40,247,order.ship_via||'',{size:8,width:121});
+  put(175,247,order.fob||'',{size:8,width:121});
+  put(307,247,order.terms||'',{size:8,width:121});
+  put(439,247,bjPdfDate(order.date_required),{size:8,width:121});
+  for(let i=0;i<n;i++){
+   const l=visible[i],rowTop=headHeight+rowHeight*i;
+   put(139,rowTop+12,l.qty,{size:9,width:62,align:'right',boldText:true});
+   put(150,rowTop+8.9,l.part||l.code,{size:8.2,width:229,boldText:true});
+   const smaller=[l.code?'EiKO CODE: '+l.code:'',l.description||''].filter(Boolean).join('  |  ');
+   put(150,rowTop+16.1,smaller,{size:6.4,width:229,color:muted});
    const price=l.price==null||l.price===''?'':Number(l.price).toFixed(2);
    put(438,rowTop+12,price,{size:8,width:48,align:'right'});
    put(450,rowTop+12,l.per||'',{size:7.6,width:29});
    put(489,rowTop+12,l.location||'',{size:8.2,width:76});
   }
-  const bottom=309+19*onPage.length;
-  // Remove every unused preprinted line, its line number, and the old footer
-  // without touching the uploaded PDF's vendor, title or item table header.
-  page.drawRectangle({x:39,y:top(773.5),width:535,height:773.5-bottom-.5,color:white,borderWidth:0});
-  put(40,bottom+16,'Order number must appear on invoices, packages, and correspondence.',{size:7.2,width:354});
-  put(420,bottom+16,'BUYER: '+(order.buyer||'Brent'),{size:8,bold:true,width:145});
-  page.drawLine({start:{x:40,y:top(bottom+28)},end:{x:572,y:top(bottom+28)},thickness:.5,color:rule});
-  put(40,bottom+43,'MAGIC CITY SUPPLY | PURCHASE ORDER',{size:8,bold:true,width:280});
+  // Footer is preserved directly from the original template and shifted
+  // upward to follow the final item. The buyer remains blank unless entered.
+  const buyer=bjPdfClean(order.buyer||'');
+  if(buyer){
+   const footerTop=headHeight+n*rowHeight;
+   page.drawRectangle({x:452,y:top(footerTop+15),width:105,height:13,color:white});
+   put(456,footerTop+11,buyer,{size:8.4,width:99,boldText:true});
+  }
  }
- resultPDF.setTitle('Magic City Supply - Purchase Order '+(order.po_number||'BJ'));
- resultPDF.setAuthor('Cahaba Sales Group');
- resultPDF.setSubject('BJ walk-in purchasing request');
- return await resultPDF.save();
+ output.setTitle('Magic City Supply - Purchase Order '+(order.po_number||'RNG'));
+ output.setAuthor('Magic City Supply');
+ output.setSubject('BJ walk-in purchasing request from Cahaba Sales Group');
+ return await output.save();
 }
+let bjPDFPreviewURL=null,bjPDFPreviewSerial=0,bjPDFPreviewOrderID=null;
+async function bjPreviewOriginalPDF(order){
+ const serial=++bjPDFPreviewSerial;
+ const panel=document.getElementById('bjPrintPaper');
+ const status=document.getElementById('bjPDFStatus');
+ if(panel)panel.innerHTML='<div class="card">Preparing the original Magic City Supply PDF preview…</div>';
+ if(status)status.textContent='Filling your original Magic City Supply PDF…';
+ try{
+  const [bytes]=await Promise.all([bjPdfLoadTemplate(),bjPdfLoadLibrary()]);
+  const generated=await bjFillOriginalPDF(order,bytes);
+  if(serial!==bjPDFPreviewSerial)return;
+  if(bjPDFPreviewURL)URL.revokeObjectURL(bjPDFPreviewURL);
+  const blob=new Blob([generated],{type:'application/pdf'});
+  bjPDFPreviewURL=URL.createObjectURL(blob);
+  bjPDFPreviewOrderID=order.id;
+  if(panel){
+   const frame=document.createElement('iframe');
+   frame.src=bjPDFPreviewURL+'#toolbar=1&navpanes=0';
+   frame.title='Original Magic City Supply purchase order PDF';
+   frame.style.cssText='display:block;width:100%;height:min(76vh,850px);min-height:420px;border:0;background:#fff';
+   panel.replaceChildren(frame);
+  }
+  if(status)status.textContent=generated.length.toLocaleString()+' PDF bytes · '+Math.ceil(order.lines.length/22)+' page(s) · '+order.lines.length+' filled line(s). No empty rows.';
+ }catch(error){
+  if(status)status.textContent='Preview unavailable: '+error.message+'. Try Open Original PDF or Download Filled PDF.';
+  if(panel)panel.innerHTML='<div class="card">Could not render the PDF preview. Use the download button above.</div>';
+ }
+}
+
 async function bjExportOriginalPDF(download=false){
  if(bjPdfPrinting)return;
  const order=bjOrders.find(o=>o.id===bjCurrentPrintID)||bjCurrentPrintOrder;
