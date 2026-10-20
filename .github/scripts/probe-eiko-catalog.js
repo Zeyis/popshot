@@ -14,3 +14,14 @@ const urls=[
   }catch(e){console.log(JSON.stringify({url:u,error:String(e)}))}
  }
 })();
+(async()=>{
+ const url="https://www.eiko.com/api/items?q=LH1&limit=2&fieldset=search";
+ try{
+  const r=await fetch(url,{signal:AbortSignal.timeout(9500)});
+  const d=await r.json();
+  console.log('EiKO PUBLIC API TOPLEVEL',JSON.stringify(Object.keys(d)));
+  const rows=d.items||d.data?.items||d.records||[];
+  console.log('EiKO PUBLIC API TOTAL',d.total||d.totalRecords||d.total_results||d.item_count||'not disclosed');
+  console.log('EiKO PUBLIC API FIRST ITEM',JSON.stringify(rows[0]||d).slice(0,3400));
+ }catch(e){console.log('EiKO PUBLIC API PARSE ERROR',String(e))}
+})();
