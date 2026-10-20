@@ -5,6 +5,7 @@ on:
     paths:
       - 'csg-inventory/**'
       - '.github/workflows/publish-csg-inventory.yml'
+      - '.github/scripts/test-bj.js'
   workflow_dispatch:
 permissions:
   contents: read
