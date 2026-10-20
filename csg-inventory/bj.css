@@ -77,3 +77,40 @@
  .bj-paper-table th{print-color-adjust:exact;-webkit-print-color-adjust:exact}
  .bj-paper-table tr{break-inside:avoid}
 }
+
+
+/* Magic City Supply original PO preview. No Cahaba logo is used on BJ documents. */
+.bj-paper{min-height:0!important;width:100%;max-width:820px;margin:0 auto;padding:36px 42px 26px!important;font-family:Arial,Helvetica,sans-serif;background:#fff;color:#173248}
+.bj-brand-header{font-size:25px;font-weight:900;letter-spacing:.01em;color:#173248}
+.bj-brand-subtitle{font-size:11px;letter-spacing:.08em;font-weight:800;color:#526474;margin-top:8px}
+.bj-shipfrom{font-size:9px;letter-spacing:.03em;font-weight:800;color:#203d53;margin-top:12px}
+.bj-paper-header{padding:0;align-items:center}
+.bj-paper-title{border-radius:10px;background:#eaf0f4;min-width:175px;padding:12px;text-align:left}
+.bj-paper-title .paper-overline{font-size:10px;font-weight:800;letter-spacing:.07em}
+.bj-paper-code{padding:7px 0 0;background:transparent;font-size:15px;font-weight:850}
+.bj-paper-rule{margin:14px 0 5px;height:4px;border:0;background:#173248}
+.bj-paper-info{margin:6px 0 17px;gap:6px 20px}
+.bj-paper-info>div{padding:5px 0}
+.bj-paper-info .field,.bj-paper-four .field{min-height:15px;padding:4px 0 7px}
+.bj-paper-four{margin:7px 0 22px}
+.bj-paper-table{table-layout:fixed;width:100%;border-collapse:collapse}
+.bj-paper-table th{font-size:9px;background:#173248!important;color:#fff!important;border:0;padding:10px 7px}
+.bj-paper-table tbody tr{height:auto;min-height:24px}
+.bj-paper-table td{font-size:10px;border-bottom:1px solid #cbd4de;padding:8px 7px}
+.bj-paper-table .bj-col-n{width:5%}
+.bj-paper-table .bj-col-qty{width:10%}
+.bj-paper-table .bj-col-stock{width:45%}
+.bj-paper-table .bj-col-price{width:12%}
+.bj-paper-table .bj-col-per{width:8%}
+.bj-paper-table .bj-col-location{width:20%}
+.bj-paper-footer{margin-top:13px;border:0}
+.bj-bottom-brand{border-top:1px solid #d3dce1;margin-top:10px;padding-top:10px;font-size:10px;font-weight:800;color:#19364c}
+@media(max-width:800px){
+ .bj-paper{min-width:680px!important;padding:20px 16px!important}
+ .bj-brand-header{font-size:23px}
+}
+@media print{
+ .bj-paper{min-height:0!important;max-width:100%!important;min-width:0!important;padding:0!important;box-shadow:none!important;break-inside:avoid}
+ .bj-paper-table tr{break-inside:avoid;page-break-inside:avoid}
+ .bj-paper-header,.bj-paper-info,.bj-paper-four,.bj-paper-footer{break-inside:avoid}
+}
