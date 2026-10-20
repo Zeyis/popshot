@@ -12,10 +12,9 @@
 <body>
 <header><div class="brand"><div class="emblem">CSG</div><div><div class="brand-name">CAHABA SALES GROUP</div><div class="brand-sub">WAREHOUSE · EiKO + VOLTEC</div></div></div><div class="user" id="identityHeader">Secure shared inventory</div></header>
 <div id="login" class="card login">
-<div id="staffPicker"><h1>Warehouse sign in</h1><p class="sub">Select your name. Your PIN unlocks EiKO, Voltec, orders, and packing lists together.</p><div id="people" class="people"></div><p class="sub">Remember Me keeps you signed in on this device for up to 30 days.</p></div>
+<div id="staffPicker"><h1>Warehouse sign in</h1><p class="sub">Choose your name and enter your PIN. First time? Create a 4-digit PIN. No setup code needed. One sign-in unlocks EiKO, Voltec, orders and packing lists.</p><div id="people" class="people"></div><p class="sub">Remember Me keeps you signed in on this device for up to 30 days.</p></div>
 <div id="pinStage" class="hidden"><button class="slim" onclick="backStaff()">← All employees</button><h1 id="pinHeading" style="margin-top:20px"></h1><p class="sub" id="pinHelp"></p>
 <form id="signinForm" onsubmit="event.preventDefault();signin()">
-<div id="inviteRow" class="hidden"><label for="inviteCode">One-time setup code from Cason</label><input id="inviteCode" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="Paste setup code"></div>
 <label for="userPin">Four-digit PIN</label><input id="userPin" type="password" inputmode="numeric" pattern="[0-9]{4}" maxlength="4" minlength="4" autocomplete="off" placeholder="••••" required>
 <div id="pinConfirmRow" class="hidden"><label for="userPinConfirm">Confirm four-digit PIN</label><input id="userPinConfirm" type="password" inputmode="numeric" maxlength="4" minlength="4" placeholder="••••"></div>
 <label style="font-weight:500;font-size:14px;margin:18px 0"><input type="checkbox" id="remember" checked> Remember me on this device</label>
@@ -28,7 +27,7 @@
 <button id="nav-order" onclick="tab('order')">Create Order</button>
 <button id="nav-orders" onclick="tab('orders')">Orders</button>
 <button id="nav-activity" onclick="tab('activity')">Activity Log</button>
-<button id="nav-staff" class="hidden" onclick="tab('staff')">Staff & PINs</button><span class="spacer"></span>
+<span class="spacer"></span>
 <button class="slim" onclick="refresh(true)">↻ Sync</button><button class="slim" onclick="signout()">Sign out</button>
 </nav>
 <div id="flash" class="alert hidden" role="status"></div>
@@ -50,7 +49,6 @@
 <div class="card"><h2 style="margin-top:0;font-size:18px">Pull items</h2><input id="orderSearch" oninput="renderMatches()" placeholder="Search any EiKO or Voltec part"><div id="orderMatches" class="results"></div><h3 style="font-size:15px">Selected items</h3><div id="cartRows"></div><div class="row" style="justify-content:space-between;margin-top:17px"><strong id="cartTotal">0 units</strong><button class="primary" id="placeOrderButton" onclick="placeOrder()">Create order & deduct inventory</button></div></div></section>
 <section id="ordersSection" class="hidden"><div class="section-head"><div><h1>Order history</h1><p class="sub">Open an order's professional packing list, or cancel and restore quantities.</p></div><input id="orderFilter" oninput="renderOrders()" placeholder="Search order / job" style="max-width:280px"></div><div id="ordersList"></div></section>
 <section id="activitySection" class="hidden"><div class="section-head"><h1>Warehouse activity</h1><input id="activityFilter" oninput="renderActivity()" placeholder="Search employee, part, job" style="max-width:320px"></div><div id="activityRows"></div></section>
-<section id="staffSection" class="hidden"><div class="section-head"><h1>Staff PIN setup</h1></div><div class="card staff-panel"><p>Invite an employee to set their four-digit PIN. Only Cason can generate a one-time code, which expires after 24 hours. Already-registered employees keep their current PINs.</p><label>Select employee</label><select id="inviteStaff"><option value="">Choose an employee</option><option>Brent</option><option>Mitch</option><option>Tyler</option><option>Dylan</option></select><button class="primary" onclick="issueInvite()" style="margin-top:14px">Generate one-time setup code</button><div id="inviteResult" class="invitation hidden"></div></div></section>
 <section id="packingSection" class="hidden"><div class="preview-toolbar"><div><h1 style="margin:0">Packing list</h1><p class="sub" style="margin:3px 0">Preview and print the prepared document.</p></div><div class="row"><button onclick="tab('orders')">← Orders</button><button class="primary" onclick="window.print()">Print / Save PDF</button></div></div><div class="preview-surface"><article id="packingPaper" class="packingPaper"></article></div></section>
 </main>
 <script>
@@ -86,10 +84,10 @@ function chooseStaff(name,registered){
  selectedStaff=name;newStaff=!registered;
  $('staffPicker').classList.add('hidden');$('pinStage').classList.remove('hidden');clearMsg('authError');
  $('pinHeading').textContent=newStaff?'Set up '+name+'’s PIN':'Welcome, '+name;
- $('pinHelp').textContent=newStaff?'Get a setup code from Cason, then choose your own 4-digit PIN.':'Enter your saved PIN. You will not need it again when switching tabs.';
- $('inviteRow').classList.toggle('hidden',!newStaff);$('pinConfirmRow').classList.toggle('hidden',!newStaff);
+ $('pinHelp').textContent=newStaff?'Create a 4-digit PIN for your name.':'Enter your saved PIN. You will not need it again when switching tabs.';
+ $('pinConfirmRow').classList.toggle('hidden',!newStaff);
  $('signinButton').textContent=newStaff?'Create PIN & open inventory':'Unlock EiKO + Voltec';
- $('userPin').value='';$('userPinConfirm').value='';$('inviteCode').value='';
+ $('userPin').value='';$('userPinConfirm').value='';
  $('userPin').focus();
 }
 function backStaff(){
@@ -100,15 +98,14 @@ async function signin(){
  try{
   if(!/^\d{4}$/.test(pin))throw Error('PIN must be exactly four numbers.');
   if(newStaff&&pin!==confirm)throw Error('The two PIN entries must match.');
-  if(newStaff&&!$('inviteCode').value.trim())throw Error('Enter your setup code from Cason.');
   const btn=$('signinButton');btn.disabled=true;
   try{
    const remember=$('remember').checked;
-   const r=await request(newStaff?'register':'login',{name:selectedStaff,pin,remember,invite:$('inviteCode').value.trim().toUpperCase()});
+   const r=await request(newStaff?'register':'login',{name:selectedStaff,pin,remember});
    token=r.token;
    localStorage.removeItem('csg_token');sessionStorage.removeItem('csg_token');
    if(remember)localStorage.setItem('csg_token',token);else sessionStorage.setItem('csg_token',token);
-   $('userPin').value='';$('userPinConfirm').value='';$('inviteCode').value='';
+   $('userPin').value='';$('userPinConfirm').value='';
    await refresh();
   }finally{btn.disabled=false;}
  }catch(error){alertMsg(error.message,true,'authError')}
@@ -121,7 +118,6 @@ async function refresh(manual=false){
   staff=r.actor;stateVersion=r.version;db=r.content;activities=r.activity||[];
   $('login').classList.add('hidden');$('app').classList.remove('hidden');
   $('identityHeader').textContent=staff+' · Signed in';
-  $('nav-staff').classList.toggle('hidden',staff!=='Cason');
   $('updatedLabel').textContent='Synced '+dateTime(r.updated_at);
   renderAll();
   if(manual)alertMsg('Inventory synced with the shared database.');
@@ -137,18 +133,16 @@ async function signout(){
  showLogin();backStaff();
 }
 function tab(name){
- if(name==='staff'&&staff!=='Cason')return;
  activeTab=name;
- for(const id of ['inventorySection','partSection','orderSection','ordersSection','activitySection','staffSection','packingSection'])$(id).classList.add('hidden');
+ for(const id of ['inventorySection','partSection','orderSection','ordersSection','activitySection','packingSection'])$(id).classList.add('hidden');
  if(name==='eiko'||name==='voltec'){
   activeDivision=name;$('inventorySection').classList.remove('hidden');renderInventory();
  }else if(name==='part'){$('partSection').classList.remove('hidden')}
  else if(name==='order'){$('orderSection').classList.remove('hidden');renderMatches();renderCart()}
  else if(name==='orders'){$('ordersSection').classList.remove('hidden');renderOrders()}
  else if(name==='activity'){$('activitySection').classList.remove('hidden');renderActivity()}
- else if(name==='staff'){$('staffSection').classList.remove('hidden')}
  else if(name==='packing'){$('packingSection').classList.remove('hidden')}
- for(const name of ['eiko','voltec','order','orders','activity','staff'])$('nav-'+name).classList.toggle('active',name===activeTab);
+ for(const name of ['eiko','voltec','order','orders','activity'])$('nav-'+name).classList.toggle('active',name===activeTab);
  clearMsg();
  window.scrollTo({top:0,behavior:'instant'});
 }
@@ -275,17 +269,6 @@ function renderActivity(){
  $('activityRows').innerHTML=activities.filter(x=>(x.actor+' '+x.action+' '+JSON.stringify(x.details||{})).toLowerCase().includes(q)).map(x=>
  '<div class="card" style="margin:8px 0"><div class="row" style="justify-content:space-between"><strong>'+E(x.actor)+' · '+E(x.action)+'</strong><span class="muted">'+dateTime(x.at)+'</span></div><div class="small muted" style="margin-top:5px;overflow-wrap:anywhere">'+E(JSON.stringify(x.details||{}))+'</div></div>').join('')||'<div class="card">No activity matches.</div>';
 }
-async function issueInvite(){
- const name=$('inviteStaff').value;
- if(!name){alertMsg('Select an employee.',true);return}
- try{
-  const x=await request('invite',{name});
-  const box=$('inviteResult');box.classList.remove('hidden');
-  box.innerHTML='<p><strong>'+E(x.name)+'’s setup code</strong></p><p><code class="mono" id="generatedCode">'+E(x.code)+'</code></p><p class="sub">Expires '+dateTime(x.expires_at)+'. Send this code privately to '+E(x.name)+'. They only need it once when creating their PIN.</p><button class="slim" onclick="copyInvite()">Copy code</button>';
-  alertMsg('Setup code created. Share it privately with the employee.');
- }catch(error){alertMsg(error.message,true)}
-}
-async function copyInvite(){try{await navigator.clipboard.writeText($('generatedCode').textContent);alertMsg('Setup code copied.')}catch{alertMsg('Copy the code shown above.',true)}}
 for(const id of ['orderCustomer','orderAttention','orderStreet','orderCity'])$(id).addEventListener('blur',function(){this.value=titleCase(this.value)});
 $('orderState').addEventListener('blur',function(){this.value=this.value.trim().toUpperCase()});
 async function start(){
