@@ -30,23 +30,10 @@ assert.equal(parsed[1].part,'CD6-PS33-FCCT-UD');
 const tsv='EiKO Ordering Code\tSKU\tDescription\n13861\tSEN5A-SPPR-WH\tSensor';
 const parsedTSV=vm.runInContext('bjParseCSV('+JSON.stringify(tsv)+')',context);
 assert.equal(parsedTSV[0].code,'13861');
-const mock={
- po_number:'RNG-261020-ABCDE', order_date:'2026-10-20',ship_to_address:'113 45th Place North, Birmingham, AL 35222',
- vendor_address:'',ship_via:'',fob:'',terms:'',date_required:null,notes:'',buyer:'Brent',
- lines:[{qty:5,part:'SEN5A-SPPR-WH',code:'13861',location:'1-6-A2',description:'Ceiling Sensor',per:'EA',price:null}]
-};
-context.o=mock;
-const paper=vm.runInContext('bjPOBody(o)',context);
-assert(paper.includes('RNG-261020-ABCDE'));
-assert(paper.includes('CAHABA SALES GROUP'));
-assert(paper.includes('MAGIC CITY SUPPLY'));
-assert(!paper.includes('data:image/jpeg;base64,'),'BJ documents must not include the Cahaba logo');
-assert(paper.includes('SEN5A-SPPR-WH'));
-assert(paper.includes('1-6-A2'));
-assert(paper.includes('13861'));
-assert.equal((paper.match(/<tr><td class="bj-col-n">/g)||[]).length,1,'A one-part request must print one row');
-assert(paper.includes('BUYER: Brent'));
-assert(index.includes('id="bjShipToAddress"'));
+assert(index.includes('id="bjBuyer" placeholder='));
 assert(index.includes('src="bj-pdf.js"'));
 assert(index.includes('bjExportOriginalPDF'));
-console.log('BJ Mode checks passed: original Magic City PDF and only used part rows.');
+assert(source.includes('bjPreviewOriginalPDF(o)'));
+assert(!source.includes('bjPOBody('),'BJ must not print a separate HTML purchase order');
+assert(!source.includes('record.buyer||\'Brent\''),'Buyer must not default to Brent');
+console.log('BJ form tests passed: PDF preview, blank buyer, CSV/TSV import.');
