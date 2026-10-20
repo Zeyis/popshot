@@ -109,7 +109,7 @@ async function bjFillOriginalPDF(order,templateBytes){
 }
 async function bjExportOriginalPDF(download=false){
  if(bjPdfPrinting)return;
- const order=bjOrders.find(o=>o.id===bjCurrentPrintID);
+ const order=bjOrders.find(o=>o.id===bjCurrentPrintID)||bjCurrentPrintOrder;
  if(!order){bjToast('Select a BJ request before printing.',true);return}
  // Reserve the browser tab immediately so Safari/Chrome do not block it after
  // asynchronous PDF generation. Downloads do not need a new tab.
