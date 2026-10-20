@@ -6,6 +6,7 @@ on:
       - 'csg-inventory/**'
       - '.github/workflows/publish-csg-inventory.yml'
       - '.github/scripts/test-bj.js'
+      - '.github/scripts/test-bj-original-pdf.js'
   workflow_dispatch:
 permissions:
   contents: read
