@@ -95,7 +95,7 @@ async function bjPoll(){
   const alert=bjField('bjAlert'),badge=bjField('bjNavBadge');
   badge.textContent=res.open;badge.classList.toggle('hidden',res.open===0);
   alert.classList.toggle('show',res.open>0);
-  bjField('bjAlertText').textContent=res.open+' BJ walk-in order'+(res.open===1?'':'s')+' need'+(res.open===1?'s':'')+' an EiKO PO. Only Cason or Brent can dismiss.';
+  bjField('bjAlertText').textContent=res.open+' BJ walk-in order'+(res.open===1?'':'s')+' need'+(res.open===1?'s':'')+' an EiKO PO.';
   if(res.open&&bjPreviouslySeen!==null&&newLatest!==was&&typeof Notification!=='undefined'&&Notification.permission==='granted'&&!document.hidden){
    try{new Notification('BJ order waiting',{body:'A BJ walk-in request needs an EiKO purchase order.'})}catch{}
   }
@@ -137,7 +137,7 @@ async function bjSubmit(){
  finally{button.disabled=false;button.textContent='Submit BJ request & notify team'}
 }
 async function bjDismiss(id){
- if(!bjCanDismiss){bjToast('Only Cason or Brent may dismiss BJ requests.',true);return}
+ if(!bjCanDismiss){bjToast('You must be signed in to dismiss a BJ request.',true);return}
  if(!confirm('Dismiss this BJ notification? The order will remain in history for printing.'))return;
  try{await bjApi('dismiss',{id});await bjPoll();bjToast('BJ alert dismissed. The order remains in history.')}
  catch(e){bjToast(e.message,true)}
