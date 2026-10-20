@@ -53,3 +53,5 @@ jobs:
         id: deployment
         uses: actions/deploy-pages@v4
 # retry deployment after enabling Pages
+
+# public EiKO lookup diagnostic schema pass
