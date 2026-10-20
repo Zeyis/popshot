@@ -26,6 +26,7 @@
 <button id="nav-voltec" onclick="tab('voltec')">Voltec Inventory</button>
 <button id="nav-order" onclick="tab('order')">Create Order</button>
 <button id="nav-orders" onclick="tab('orders')">Orders</button>
+<button id="nav-receiving" onclick="tab('receiving')">Packing List Receiving</button>
 <button id="nav-activity" onclick="tab('activity')">Activity Log</button>
 <span class="spacer"></span>
 <button class="slim" onclick="refresh(true)">↻ Sync</button><button class="slim" onclick="signout()">Sign out</button>
@@ -48,6 +49,35 @@
 <div class="card"><h2 style="margin-top:0;font-size:18px">Ship-to information</h2><div class="grid2"><div><label>Customer / company *</label><input id="orderCustomer" placeholder="Customer name"></div><div><label>Job / project</label><input id="orderJob" placeholder="Project name"></div><div><label>Attention / recipient</label><input id="orderAttention"></div><div><label>Street address</label><input id="orderStreet"></div><div><label>City</label><input id="orderCity"></div><div><label>State</label><input id="orderState" placeholder="AL" maxlength="30" autocapitalize="characters"></div><div><label>ZIP code</label><input id="orderZip" inputmode="numeric"></div></div><label>Notes</label><textarea id="orderNotes" rows="2"></textarea></div>
 <div class="card"><h2 style="margin-top:0;font-size:18px">Pull items</h2><input id="orderSearch" oninput="renderMatches()" placeholder="Search any EiKO or Voltec part"><div id="orderMatches" class="results"></div><h3 style="font-size:15px">Selected items</h3><div id="cartRows"></div><div class="row" style="justify-content:space-between;margin-top:17px"><strong id="cartTotal">0 units</strong><button class="primary" id="placeOrderButton" onclick="placeOrder()">Create order & deduct inventory</button></div></div></section>
 <section id="ordersSection" class="hidden"><div class="section-head"><div><h1>Order history</h1><p class="sub">Open an order's professional packing list, or cancel and restore quantities.</p></div><input id="orderFilter" oninput="renderOrders()" placeholder="Search order / job" style="max-width:280px"></div><div id="ordersList"></div></section>
+<section id="receivingSection" class="hidden">
+<div class="section-head"><div><h1>Packing List Receiving</h1><p class="sub">Scan a supplier packing list or enter the details manually. Review every line before adding stock.</p></div><span class="stock-pill">Staff PIN session · Shared inventory</span></div>
+<div class="note"><strong>Receiving safety:</strong> “Ordered” is not “Received.” Check the <strong>Shipped</strong> column, then choose <strong>Cases × Units per case</strong> or <strong>Individual units</strong>. Nothing is added until you confirm. For handwritten numbers, please verify against the actual paper.</div>
+<div class="card">
+<h2 style="margin-top:0;font-size:17px">1 · Upload a packing list</h2>
+<div class="grid2"><div><label>Take a photo (phone camera)</label><input type="file" id="receivingCamera" accept="image/*" capture="environment" onchange="receivingFileChanged(this)"></div>
+<div><label>Upload photo or PDF</label><input type="file" id="receivingUpload" accept="image/*,application/pdf,.pdf" onchange="receivingFileChanged(this)"></div></div>
+<p class="muted" style="margin-top:9px">Photos, scanned PDF and selectable-text PDF supported (up to 14 MB, first three PDF pages). Recognition runs in your browser; the app doesn't archive the original image.</p>
+<div id="receivingFilePreview"></div>
+<div class="row" style="margin-top:13px"><button id="receivingScanButton" onclick="receivingRunScan()">↻ Scan selected document again</button><span class="muted" id="receivingFileLabel">No document selected</span></div>
+<div id="receivingStatus" class="alert hidden" role="status" aria-live="polite"></div>
+<details style="margin-top:12px"><summary class="muted" style="cursor:pointer">Show or correct recognized text (OCR)</summary><label>Recognized text — editable</label><textarea id="receivingRawText" rows="8" placeholder="If scanning misses item numbers, paste the packing list text here."></textarea><button class="slim" onclick="receivingParseEditedText()">Detect item rows from text</button></details>
+</div>
+<div class="card">
+<h2 style="font-size:17px;margin-top:0">2 · Supplier and shipment reference</h2>
+<div class="grid2"><div><label>Supplier / vendor *</label><input id="receiveSupplier" placeholder="Flexwelt / Voltec, EiKO, etc."></div>
+<div><label>Packing-list / shipment number *</label><input id="receiveReference" placeholder="e.g. 0249781" autocapitalize="characters" spellcheck="false"></div>
+<div><label>Document date (optional)</label><input id="receiveDate" type="date"></div>
+<div><label>Default inventory for new lines</label><select id="receiveDivision"><option value="voltec">Voltec</option><option value="eiko">EiKO</option></select></div></div>
+<label>Receiving notes</label><textarea id="receiveNotes" rows="2" placeholder="Condition, damaged units, discrepancies, etc."></textarea>
+</div>
+<div class="section-head" style="margin-top:22px"><div><h2 style="margin:0">3 · Review actual quantities</h2><p class="sub">Check all items; new SKUs can be created when you approve receiving.</p></div></div>
+<div class="row"><input id="receivingNewPart" placeholder="Enter a SKU manually" style="flex:1;min-width:160px" autocapitalize="characters" spellcheck="false"><button onclick="receivingAddManual()">+ Add receiving line</button></div>
+<div id="receivingLines"></div>
+<div class="card"><div class="section-head"><strong id="receivingSummary">0 lines · 0 units</strong><button id="receivePostButton" class="primary" onclick="receivingPost()" disabled>Confirm & add received stock</button></div>
+<p class="muted">Approved counts will increase stock only once for each unique supplier and packing-list reference. Corrections can be reversed if stock is still available.</p></div>
+<div class="section-head" style="margin-top:32px"><div><h2 style="margin:0">Receiving history</h2><p class="sub">Recorded packing lists and posted quantities.</p></div></div>
+<div id="receivingHistory"></div>
+</section>
 <section id="activitySection" class="hidden"><div class="section-head"><h1>Warehouse activity</h1><input id="activityFilter" oninput="renderActivity()" placeholder="Search employee, part, job" style="max-width:320px"></div><div id="activityRows"></div></section>
 <section id="packingSection" class="hidden"><div class="preview-toolbar"><div><h1 style="margin:0">Packing list</h1><p class="sub" style="margin:3px 0">Preview and print the prepared document.</p></div><div class="row"><button onclick="tab('orders')">← Orders</button><button class="primary" onclick="window.print()">Print / Save PDF</button></div></div><div class="preview-surface"><article id="packingPaper" class="packingPaper"></article></div></section>
 </main>
@@ -134,15 +164,16 @@ async function signout(){
 }
 function tab(name){
  activeTab=name;
- for(const id of ['inventorySection','partSection','orderSection','ordersSection','activitySection','packingSection'])$(id).classList.add('hidden');
+ for(const id of ['inventorySection','partSection','orderSection','ordersSection','receivingSection','activitySection','packingSection'])$(id).classList.add('hidden');
  if(name==='eiko'||name==='voltec'){
   activeDivision=name;$('inventorySection').classList.remove('hidden');renderInventory();
  }else if(name==='part'){$('partSection').classList.remove('hidden')}
  else if(name==='order'){$('orderSection').classList.remove('hidden');renderMatches();renderCart()}
  else if(name==='orders'){$('ordersSection').classList.remove('hidden');renderOrders()}
+ else if(name==='receiving'){$('receivingSection').classList.remove('hidden');renderReceiving()}
  else if(name==='activity'){$('activitySection').classList.remove('hidden');renderActivity()}
  else if(name==='packing'){$('packingSection').classList.remove('hidden')}
- for(const name of ['eiko','voltec','order','orders','activity'])$('nav-'+name).classList.toggle('active',name===activeTab);
+ for(const name of ['eiko','voltec','order','orders','receiving','activity'])$('nav-'+name).classList.toggle('active',name===activeTab);
  clearMsg();
  window.scrollTo({top:0,behavior:'instant'});
 }
@@ -152,6 +183,7 @@ function renderAll(){
  if(activeTab==='activity')renderActivity();
  if(activeTab==='order'){renderMatches();renderCart()}
  if(activeTab==='packing'&&selectedOrder)renderPacking(selectedOrder);
+ if(activeTab==='receiving')renderReceiving();
 }
 function renderInventory(){
  const division=activeDivision,rows=inventoryOf(division),q=$('inventorySearch').value.trim().toLowerCase();
@@ -279,4 +311,4 @@ async function start(){
 document.addEventListener('visibilitychange',()=>{if(!document.hidden&&token)refresh().catch(()=>{})});
 setInterval(()=>{if(token&&!document.hidden&&activeTab!=='part'&&activeTab!=='order'&&activeTab!=='packing')refresh().catch(()=>{})},30000);
 start();
-</script></body></html>
+</script><script src="receiving-ocr.js"></script><script src="receiving.js"></script></body></html>
