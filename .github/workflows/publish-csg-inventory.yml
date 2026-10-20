@@ -39,6 +39,8 @@ jobs:
           node .github/scripts/test-receiving.js
           node --check csg-inventory/bj.js
           node .github/scripts/test-bj.js
+      - name: Check public EiKO catalog feed (diagnostic)
+        run: node .github/scripts/probe-eiko-catalog.js
       - name: Configure Pages
         uses: actions/configure-pages@v5
         with:
