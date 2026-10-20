@@ -34,6 +34,9 @@ jobs:
           assert 'packingPaper' in s and 'userPin' in s
           PY
           node --check /tmp/csg-inventory-app.js
+          node --check csg-inventory/receiving-ocr.js
+          node --check csg-inventory/receiving.js
+          node .github/scripts/test-receiving.js
       - name: Configure Pages
         uses: actions/configure-pages@v5
         with:
