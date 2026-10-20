@@ -192,7 +192,8 @@ async function bjSearchNow(){
  try{
   const res=await bjApi('catalog',{q});
   bjCatalogResults=res.products||[];
-  bjField('bjCatalogResults').innerHTML=bjCatalogResults.map((p,i)=>
+  const searchInfo=res.scope==='live_public_eiko_catalog'?'Live EiKO public catalog · '+bjCatalogResults.length+' shown'+(res.total?' of '+res.total+' matches':'')+'. Refine your search if needed.':(res.warning||'Showing saved/imported EiKO products.');
+  bjField('bjCatalogResults').innerHTML='<div class="muted" style="padding:9px 12px;background:#f4f6f2">'+bjEsc(searchInfo)+'</div>'+bjCatalogResults.map((p,i)=>
    '<div class="bj-suggest"><div style="flex:1;min-width:0"><strong>'+bjEsc(p.part_number)+'</strong> <span class="tag">Code '+bjEsc(p.ordering_code)+'</span><div class="muted">'+bjEsc(p.description||'')+'</div></div><button class="slim" onclick="bjChooseCatalog('+i+')">+ Add</button></div>').join('')
    ||'<div class="muted" style="padding:12px">No matching entries in the indexed catalog. You can still type any EiKO part and ordering code manually, or use EiKO’s official public search.</div>';
  }catch(e){bjField('bjCatalogResults').textContent=e.message}
