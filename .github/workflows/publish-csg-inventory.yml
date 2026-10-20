@@ -37,6 +37,8 @@ jobs:
           node --check csg-inventory/receiving-ocr.js
           node --check csg-inventory/receiving.js
           node .github/scripts/test-receiving.js
+          node --check csg-inventory/bj.js
+          node .github/scripts/test-bj.js
       - name: Configure Pages
         uses: actions/configure-pages@v5
         with:
