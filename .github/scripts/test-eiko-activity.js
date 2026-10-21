@@ -59,6 +59,7 @@ const runtime={
  setTimeout:(fn)=>{callbacks.push(fn);return callbacks.length},
  clearTimeout:()=>{},console,
 };
+runtime.window=runtime;
 vm.createContext(runtime);vm.runInContext(autocompleteCode,runtime);
 (async()=>{
  elements.editPart.value='TWP1';
