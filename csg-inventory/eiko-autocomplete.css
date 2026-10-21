@@ -1,0 +1,15 @@
+/* EiKO live catalog autocomplete — Add / Edit Part */
+.eiko-lookup{position:relative}
+.eiko-lookup .eiko-suggestion-list{position:absolute;z-index:45;top:calc(100% + 4px);left:0;right:0;overflow-y:auto;max-height:310px;background:#fff;border:1px solid #c9d5cc;border-radius:10px;box-shadow:0 12px 30px #17252524}
+.eiko-lookup .eiko-suggestion-list.hidden{display:none}
+.eiko-result{display:block;width:100%;background:#fff;border:none;border-radius:0;border-bottom:1px solid #edf0ec;text-align:left;padding:12px 14px;font-size:13px;font-weight:500}
+.eiko-result:last-child{border-bottom:0}
+.eiko-result:hover,.eiko-result.highlighted{background:#fff9d7}
+.eiko-result strong{display:block;font-weight:800;overflow-wrap:anywhere}
+.eiko-result .eiko-code{display:inline-block;border-radius:5px;background:#edf0e2;padding:2px 7px;font-size:11px;font-weight:800;margin:5px 0;color:#485331}
+.eiko-result .eiko-description{font-size:12px;color:#536461;line-height:1.35;overflow-wrap:anywhere}
+.eiko-result .eiko-stock{font-size:11px;color:#346c57;font-weight:700;margin-top:3px}
+.eiko-result-status{padding:11px 13px;font-size:12px;color:#596966;background:#f8faf8}
+.eiko-lookup-info{padding:9px 11px;border-radius:8px;margin-top:10px;background:#f2f5ed;color:#43534d;font-size:12px}
+.eiko-lookup-info.error{background:#fff2e0;color:#8a512a}
+@media(max-width:650px){.eiko-lookup .eiko-suggestion-list{max-height:47vh}.eiko-result{padding:13px 12px}}
