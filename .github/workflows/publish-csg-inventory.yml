@@ -7,6 +7,7 @@ on:
       - '.github/workflows/publish-csg-inventory.yml'
       - '.github/scripts/test-bj.js'
       - '.github/scripts/test-bj-original-pdf.js'
+      - '.github/scripts/test-eiko-activity.js'
   workflow_dispatch:
 permissions:
   contents: read
@@ -42,6 +43,9 @@ jobs:
           node --check csg-inventory/bj.js
           node .github/scripts/test-bj.js
           node --check csg-inventory/bj-pdf.js
+          node --check csg-inventory/eiko-autocomplete.js
+          node --check csg-inventory/activity-log.js
+          node .github/scripts/test-eiko-activity.js
       - name: Test filled original Magic City Supply PDF
         run: |
           npm install --prefix /tmp/csg-pdf-test --no-save --no-audit --no-fund pdf-lib@1.17.1
