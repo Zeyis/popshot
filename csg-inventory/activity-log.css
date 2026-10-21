@@ -1,0 +1,24 @@
+/* Warehouse activity timeline – readable and filterable */
+.activity-controls{display:flex;flex-wrap:wrap;align-items:center;gap:9px}
+.activity-controls input{min-width:180px;flex:1}
+.activity-controls select{width:auto;min-width:160px}
+.activity-count{margin:8px 0 20px;color:#63716d;font-size:12px}
+.activity-day{font-size:13px;font-weight:850;letter-spacing:.04em;color:#667670;margin:22px 0 8px;padding-bottom:8px;border-bottom:1px solid #dce1db}
+.activity-entry{display:flex;align-items:flex-start;gap:13px;background:#fff;border:1px solid #e0e5df;border-radius:11px;padding:15px;margin:8px 0}
+.activity-symbol{border-radius:10px;display:grid;place-items:center;flex:0 0 38px;height:38px;background:#eaf0e9;color:#455b4e;font-size:17px;font-weight:900}
+.activity-symbol.activity-bj{background:#f8e8ab;color:#785212;font-size:13px}
+.activity-symbol.activity-inventory{background:#e5efe8;color:#315d45}
+.activity-symbol.activity-orders{background:#e7edf5;color:#355b7d}
+.activity-symbol.activity-accounts{background:#eef0f2;color:#56626f}
+.activity-symbol.activity-receiving{background:#e7f5ef;color:#287355}
+.activity-content{flex:1;min-width:0}
+.activity-heading{display:flex;align-items:center;flex-wrap:wrap;gap:8px}
+.activity-heading strong{font-size:14px;overflow-wrap:anywhere;color:#27332e}
+.activity-category{display:inline-block;background:#eff2ed;color:#68756e;font-size:10px;font-weight:750;border-radius:20px;padding:4px 7px}
+.activity-byline{color:#6e7872;font-size:11px;margin-top:3px}
+.activity-summary{font-size:13px;color:#415049;margin:9px 0 0;line-height:1.45;overflow-wrap:anywhere}
+.activity-detail{font-size:12px;margin-top:11px;color:#5a6961}
+.activity-detail summary{cursor:pointer;color:#455f6a;font-weight:700}
+.activity-detail ul{margin:7px 0 0;padding-left:19px;max-height:220px;overflow-y:auto;line-height:1.8}
+.activity-empty{color:#67726b}
+@media(max-width:720px){.activity-controls{width:100%}.activity-controls select,.activity-controls input{width:100%;min-width:0}.activity-entry{padding:12px;gap:10px}.activity-symbol{flex-basis:31px;height:31px;border-radius:7px;font-size:14px}}
