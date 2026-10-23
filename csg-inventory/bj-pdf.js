@@ -54,7 +54,7 @@ async function bjFillOriginalPDF(order,templateBytes){
  for(let offset=0;offset<lines.length;offset+=maxRows){
   const visible=lines.slice(offset,offset+maxRows);
   const n=visible.length;
-  const height=headHeight+n*rowHeight+footerHeight;
+  const height=sourceHeight;
   const page=output.addPage([sourceWidth,height]);
   const [topGraphic,rowGraphic,footerGraphic]=await output.embedPages(
    [srcPage,srcPage,srcPage],
@@ -64,8 +64,8 @@ async function bjFillOriginalPDF(order,templateBytes){
     {left:0,bottom:0,right:sourceWidth,top:footerHeight}
    ]
   );
-  page.drawPage(topGraphic,{x:0,y:footerHeight+n*rowHeight,width:sourceWidth,height:headHeight});
-  page.drawPage(rowGraphic,{x:0,y:footerHeight,width:sourceWidth,height:n*rowHeight});
+  page.drawPage(topGraphic,{x:0,y:sourceHeight-headHeight,width:sourceWidth,height:headHeight});
+  page.drawPage(rowGraphic,{x:0,y:sourceHeight-headHeight-n*rowHeight,width:sourceWidth,height:n*rowHeight});
   page.drawPage(footerGraphic,{x:0,y:0,width:sourceWidth,height:footerHeight});
   const top=y=>height-y;
   function put(x,y,value,{size=8.5,width=240,boldText=false,align='left',color=navy}={}){
@@ -100,18 +100,19 @@ async function bjFillOriginalPDF(order,templateBytes){
    const l=visible[i],rowTop=headHeight+rowHeight*i;
    put(139,rowTop+12,l.qty,{size:9,width:62,align:'right',boldText:true});
    put(150,rowTop+8.9,l.part||l.code,{size:8.2,width:229,boldText:true});
-   const smaller=[l.code?'EiKO CODE: '+l.code:'',l.description||''].filter(Boolean).join('  |  ');
+   const smaller=[l.code?'EiKO CODE: '+l.code:'',l.note?'NOTE: '+l.note:'',l.description||''].filter(Boolean).join('  |  ');
    put(150,rowTop+16.1,smaller,{size:6.4,width:229,color:muted});
    const price=l.price==null||l.price===''?'':Number(l.price).toFixed(2);
    put(438,rowTop+12,price,{size:8,width:48,align:'right'});
    put(450,rowTop+12,l.per||'',{size:7.6,width:29});
-   put(489,rowTop+12,l.location||'',{size:8.2,width:76});
+   put(489,rowTop+9,l.location||'',{size:8.2,width:76});
+   put(489,rowTop+16.5,l.source==='eiko'?'EiKO WAREHOUSE':'OUR WAREHOUSE',{size:5.7,width:76,color:muted});
   }
   // Footer is preserved directly from the original template and shifted
   // upward to follow the final item. The buyer remains blank unless entered.
   const buyer=bjPdfClean(order.buyer||'');
   if(buyer){
-   const footerTop=headHeight+n*rowHeight;
+   const footerTop=sourceHeight-footerHeight;
    page.drawRectangle({x:452,y:top(footerTop+15),width:105,height:13,color:white});
    put(456,footerTop+11,buyer,{size:8.4,width:99,boldText:true});
   }
