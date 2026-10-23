@@ -14,7 +14,7 @@ async function bjApi(action,more={}){
  return body;
 }
 function bjDraftKey(){return 'csg_bj_draft_'+(staff||'staff')}
-function bjLineDefault(){return {qty:'',part:'',code:'',description:'',price:'',per:'EA',location:''}}
+function bjLineDefault(){return {qty:'',part:'',code:'',description:'',price:'',per:'EA',location:'',source:'ours',note:''}}
 function bjFormState(){
  return {buyer:bjField('bjBuyer').value,shipVia:bjField('bjShipVia').value,fob:bjField('bjFOB').value,terms:bjField('bjTerms').value,dateRequired:bjField('bjRequiredDate').value,vendorAddress:bjField('bjVendorAddress').value,shipToAddress:bjField('bjShipToAddress').value,notes:bjField('bjNotes').value,lines:bjLines};
 }
@@ -69,6 +69,8 @@ function bjRenderLines(){
  +'<td data-label="Price (optional)" class="price"><input type="number" min="0" step="0.01" inputmode="decimal" value="'+bjEsc(l.price)+'" oninput="bjChangeRow('+i+',\'price\',this.value)" placeholder="—"></td>'
  +'<td data-label="Per" class="per"><input value="'+bjEsc(l.per)+'" oninput="bjChangeRow('+i+',\'per\',this.value)" placeholder="EA"></td>'
  +'<td data-label="Warehouse location" class="location"><input value="'+bjEsc(l.location)+'" oninput="bjChangeRow('+i+',\'location\',this.value)" placeholder="1-6-A1"></td>'
+ +'<td data-label="Source" class="source"><select onchange="bjChangeRow('+i+',\'source\',this.value)"><option value="ours"'+(l.source!=='eiko'?' selected':'')+'>Our Warehouse</option><option value="eiko"'+(l.source==='eiko'?' selected':'')+'>EiKO Warehouse</option></select></td>'
+ +'<td data-label="Optional note" class="note"><input value="'+bjEsc(l.note||'')+'" maxlength="220" oninput="bjChangeRow('+i+',\'note\',this.value)" placeholder="Optional note"></td>'
  +'<td data-label="Remove" class="action"><button class="slim danger" onclick="bjRemoveLine('+i+')" title="Remove line">×</button></td></tr>').join('');
  bjField('bjLineCount').textContent=bjLines.filter(l=>l.part||l.code).length+' of 22 lines';
 }
