@@ -39,7 +39,7 @@ function bjAssignFields(record={}){
  bjField('bjVendorAddress').value=record.vendorAddress||record.vendor_address||'';
  bjField('bjShipToAddress').value=record.shipToAddress||((record.ship_to_address||'').includes('113 45th Place North')?'':record.ship_to_address)||'';
  bjField('bjNotes').value=record.notes||'';
- bjField('bjEditLabel').textContent=record.po_number?'Editing '+record.po_number:'New walk-in request · PO number generated when submitted';
+ bjField('bjEditLabel').textContent=record.po_number?'Editing '+record.po_number:'New walk-in request · CSG-#### generated when submitted';
 }
 function bjResetForm(){
  if(!confirm('Start a blank BJ order? Any unsent changes on this device will be cleared.'))return;
