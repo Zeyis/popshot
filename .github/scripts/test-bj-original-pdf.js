@@ -12,14 +12,14 @@ const {bjFillOriginalPDF}=require('../../csg-inventory/bj-pdf.js');
  assert.equal(actualHash,'861554a84959cd4b1958c7263da780623bfe3f02a5f2abb0f63789880b18ac23','Must use original uploaded PDF template bytes, not a substitute');
  const original=await PDFLib.PDFDocument.load(base);
  assert.equal(original.getPageCount(),1);
- const mock={po_number:'RNG-261020-ABCDE',order_date:'2026-10-20',buyer:'',vendor_address:'',
+ const mock={po_number:'CSG-0001',order_date:'2026-10-20',buyer:'',vendor_address:'',
  ship_to_address:'',ship_via:'',terms:'',fob:'',date_required:null,
  lines:[{qty:5,part:'SEN5A-SPPR-WH',code:'13861',description:'Ceiling sensor',location:'1-6-A2',per:'EA',price:null}]};
  const single=await bjFillOriginalPDF(mock,base);
  const one=await PDFLib.PDFDocument.load(single);
  assert.equal(one.getPageCount(),1,'One item must generate exactly ONE page');
  assert.equal(one.getPages()[0].getWidth(),612,'Use original letter-page width');
- assert.equal(one.getPages()[0].getHeight(),393,'One used row means one compact page, not a full sheet of empty lines');
+ assert.equal(one.getPages()[0].getHeight(),792,'Always print a full US Letter page even for one item');
  mock.lines=Array.from({length:22},(_,i)=>({...mock.lines[0],part:'PART-'+i,code:String(10000+i)}));
  const twentyTwo=await PDFLib.PDFDocument.load(await bjFillOriginalPDF(mock,base));
  assert.equal(twentyTwo.getPageCount(),1,'22 items fit on one original template page');
@@ -27,6 +27,6 @@ const {bjFillOriginalPDF}=require('../../csg-inventory/bj-pdf.js');
  mock.lines.push({...mock.lines[0],part:'PART-23'});
  const twentyThree=await PDFLib.PDFDocument.load(await bjFillOriginalPDF(mock,base));
  assert.equal(twentyThree.getPageCount(),2,'23 items create exactly two pages');
- assert.equal(twentyThree.getPages()[1].getHeight(),393,'Second page contains only the one extra line');
- console.log('Original Magic City PDF source hash confirmed; 1-row=393pt, 22-row=792pt, 23-row=2 compact pages.');
+ assert.equal(twentyThree.getPages()[1].getHeight(),792,'Second page remains full letter-size for one extra item');
+ console.log('Original Magic City PDF source hash confirmed; 1-row=792pt, 22-row=792pt, 23-row=2 full pages.');
 })().catch(e=>{console.error(e);process.exitCode=1;});
