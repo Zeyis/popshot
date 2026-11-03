@@ -66,7 +66,7 @@ async function bjFillOriginalPDF(order,templateBytes){
  const lines=Array.isArray(order.lines)?order.lines:[];
  if(!lines.length)throw Error('This BJ request does not contain any item lines.');
  const totals=bjCalculatePriceSummary(lines);
- const maxRows=totals.pricedLines>0?20:22,headHeight=307,rowHeight=19,footerHeight=67,sourceHeight=792,sourceWidth=612;
+ const maxRows=totals.pricedLines>0?19:22,headHeight=307,rowHeight=19,footerHeight=67,sourceHeight=792,sourceWidth=612;
  for(let offset=0;offset<lines.length;offset+=maxRows){
   const visible=lines.slice(offset,offset+maxRows);
   const n=visible.length;
@@ -175,7 +175,7 @@ async function bjPreviewOriginalPDF(order){
   }
   if(status){
    const info=bjCalculatePriceSummary(order.lines);
-   status.textContent=generated.length.toLocaleString()+' PDF bytes · '+Math.ceil(order.lines.length/(info.pricedLines?20:22))+' page(s) · '+order.lines.length+' filled line(s)'
+   status.textContent=generated.length.toLocaleString()+' PDF bytes · '+Math.ceil(order.lines.length/(info.pricedLines?19:22))+' page(s) · '+order.lines.length+' filled line(s)'
      +(info.pricedLines?' · '+(info.unpricedLines?'Priced items total: ':'Order total: ')+bjFormatUSD(info.totalCents):'');
   }
  }catch(error){
@@ -209,7 +209,7 @@ async function bjExportOriginalPDF(download=false){
   }
   if(status){
    const info=bjCalculatePriceSummary(order.lines);
-   status.textContent='Filled original PDF created. '+Math.ceil(order.lines.length/(info.pricedLines?20:22))+' page(s), '+order.lines.length+' printed part line(s)'
+   status.textContent='Filled original PDF created. '+Math.ceil(order.lines.length/(info.pricedLines?19:22))+' page(s), '+order.lines.length+' printed part line(s)'
      +(info.pricedLines?', '+(info.unpricedLines?'priced items total ':'order total ')+bjFormatUSD(info.totalCents):'')+'.';
   }
   setTimeout(()=>URL.revokeObjectURL(url),120000);
