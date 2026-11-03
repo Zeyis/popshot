@@ -89,6 +89,12 @@ async function bjFillOriginalPDF(order,templateBytes,options={}){
    ]
   );
   page.drawPage(topGraphic,{x:0,y:sourceHeight-headHeight,width:sourceWidth,height:headHeight});
+  if(copyType==='clean'){
+   // Original PO's header says LOCATION. Cover that heading with the exact
+   // original dark-navy color, retaining the intact blue table header.
+   // No location or warehouse-source text is written to clean-copy rows.
+   page.drawRectangle({x:498,y:sourceHeight-304,width:69,height:19,color:rgb(23/255,51/255,74/255)});
+  }
   page.drawPage(rowGraphic,{x:0,y:sourceHeight-headHeight-n*rowHeight,width:sourceWidth,height:n*rowHeight});
   page.drawPage(footerGraphic,{x:0,y:0,width:sourceWidth,height:footerHeight});
   const top=y=>height-y;
