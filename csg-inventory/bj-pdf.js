@@ -55,7 +55,14 @@ function bjCalculatePriceSummary(lines){
 function bjFormatUSD(cents){
  return '$'+(cents/100).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
 }
-async function bjFillOriginalPDF(order,templateBytes){
+function bjLocationFieldsForCopy(line,copyType='warehouse'){
+ if(copyType==='clean')return {location:'',sourceLabel:''};
+ return {
+  location:String(line?.location||''),
+  sourceLabel:line?.source==='eiko'?'EiKO WAREHOUSE':'OUR WAREHOUSE'
+ };
+}
+async function bjFillOriginalPDF(order,templateBytes,options={}){
  const {PDFDocument,StandardFonts,rgb}=await bjPdfLoadLibrary();
  const original=await PDFDocument.load(templateBytes);
  const srcPage=original.getPage(0);
@@ -64,6 +71,7 @@ async function bjFillOriginalPDF(order,templateBytes){
  const bold=await output.embedFont(StandardFonts.HelveticaBold);
  const navy=rgb(.11,.21,.30),muted=rgb(.35,.46,.54),white=rgb(1,1,1);
  const lines=Array.isArray(order.lines)?order.lines:[];
+ const copyType=options.copyType==='clean'?'clean':'warehouse';
  if(!lines.length)throw Error('This BJ request does not contain any item lines.');
  const totals=bjCalculatePriceSummary(lines);
  const maxRows=totals.pricedLines>0?19:22,headHeight=307,rowHeight=19,footerHeight=67,sourceHeight=792,sourceWidth=612;
@@ -121,8 +129,9 @@ async function bjFillOriginalPDF(order,templateBytes){
    const price=l.price==null||l.price===''?'':Number(l.price).toFixed(2);
    put(438,rowTop+12,price,{size:8,width:48,align:'right'});
    put(450,rowTop+12,l.per||'',{size:7.6,width:29});
-   put(489,rowTop+9,l.location||'',{size:8.2,width:76});
-   put(489,rowTop+16.5,l.source==='eiko'?'EiKO WAREHOUSE':'OUR WAREHOUSE',{size:5.7,width:76,color:muted});
+   const locationFields=bjLocationFieldsForCopy(l,copyType);
+   put(489,rowTop+9,locationFields.location,{size:8.2,width:76});
+   put(489,rowTop+16.5,locationFields.sourceLabel,{size:5.7,width:76,color:muted});
   }
   // Footer is preserved directly from the original template and shifted
   // upward to follow the final item. The buyer remains blank unless entered.
@@ -146,10 +155,25 @@ async function bjFillOriginalPDF(order,templateBytes){
    put(456,footerTop+11,buyer,{size:8.4,width:99,boldText:true});
   }
  }
- output.setTitle('Magic City Supply - Purchase Order '+(order.po_number||'RNG'));
+ output.setTitle('Magic City Supply - '+(copyType==='clean'?'Clean Copy':'Warehouse Copy')+' - Purchase Order '+(order.po_number||'CSG-####'));
  output.setAuthor('Magic City Supply');
  output.setSubject('BJ walk-in purchasing request from Cahaba Sales Group');
  return await output.save();
+}
+async function bjFillBothCopiesPDF(order,templateBytes){
+ const {PDFDocument}=await bjPdfLoadLibrary();
+ const merged=await PDFDocument.create();
+ // Print in picking order: our location-marked warehouse copy first,
+ // followed by an outward-facing clean copy without warehouse locations.
+ for(const copyType of ['warehouse','clean']){
+  const bytes=await bjFillOriginalPDF(order,templateBytes,{copyType});
+  const doc=await PDFDocument.load(bytes);
+  const pages=await merged.copyPages(doc,doc.getPageIndices());
+  pages.forEach(p=>merged.addPage(p));
+ }
+ merged.setTitle('Magic City Supply - '+(order.po_number||'CSG-####')+' - Warehouse and Clean Copies');
+ merged.setSubject('Two copies: internal warehouse locations and clean external purchase order');
+ return await merged.save();
 }
 let bjPDFPreviewURL=null,bjPDFPreviewSerial=0,bjPDFPreviewOrderID=null;
 async function bjPreviewOriginalPDF(order){
@@ -184,7 +208,7 @@ async function bjPreviewOriginalPDF(order){
  }
 }
 
-async function bjExportOriginalPDF(download=false){
+async function bjExportOriginalPDF(download=false,copyType='both'){
  if(bjPdfPrinting)return;
  const order=bjOrders.find(o=>o.id===bjCurrentPrintID)||bjCurrentPrintOrder;
  if(!order){bjToast('Select a BJ request before printing.',true);return}
@@ -197,9 +221,15 @@ async function bjExportOriginalPDF(download=false){
  if(status)status.textContent='Filling the original Magic City Supply PDF…';
  try{
   const [template]=await Promise.all([bjPdfLoadTemplate(),bjPdfLoadLibrary()]);
-  const bytes=await bjFillOriginalPDF(order,template);
+  const selected=['warehouse','clean','both'].includes(copyType)?copyType:'both';
+  const bytes=selected==='both'
+    ?await bjFillBothCopiesPDF(order,template)
+    :await bjFillOriginalPDF(order,template,{copyType:selected});
   const url=URL.createObjectURL(new Blob([bytes],{type:'application/pdf'}));
-  const filename=(order.po_number||'BJ-PO').replace(/[^a-zA-Z0-9-]/g,'_')+'-Magic-City-Supply.pdf';
+  const filename=(order.po_number||'BJ-PO').replace(/[^a-zA-Z0-9-]/g,'_')+'-'+(
+    selected==='warehouse'?'Warehouse-With-Locations':
+    selected==='clean'?'Clean-Without-Locations':'Both-Copies'
+  )+'-Magic-City-Supply.pdf';
   if(download){
    const a=document.createElement('a');a.href=url;a.download=filename;document.body.appendChild(a);a.click();a.remove();
   }else if(tab){
@@ -209,7 +239,9 @@ async function bjExportOriginalPDF(download=false){
   }
   if(status){
    const info=bjCalculatePriceSummary(order.lines);
-   status.textContent='Filled original PDF created. '+Math.ceil(order.lines.length/(info.pricedLines?19:22))+' page(s), '+order.lines.length+' printed part line(s)'
+   status.textContent='Filled original PDF created. '+(
+     Math.ceil(order.lines.length/(info.pricedLines?19:22))*(copyType==='both'?2:1)
+    )+' page(s), '+order.lines.length+' item line(s) per copy'
      +(info.pricedLines?', '+(info.unpricedLines?'priced items total ':'order total ')+bjFormatUSD(info.totalCents):'')+'.';
   }
   setTimeout(()=>URL.revokeObjectURL(url),120000);
@@ -218,4 +250,4 @@ async function bjExportOriginalPDF(download=false){
   if(status)status.textContent='Could not generate PDF: '+error.message;
  }finally{bjPdfPrinting=false}
 }
-if(typeof module!=='undefined'&&module.exports)module.exports={bjFillOriginalPDF,bjPdfDate,bjPdfClean,bjCalculatePriceSummary,bjFormatUSD};
+if(typeof module!=='undefined'&&module.exports)module.exports={bjFillOriginalPDF,bjFillBothCopiesPDF,bjLocationFieldsForCopy,bjPdfDate,bjPdfClean,bjCalculatePriceSummary,bjFormatUSD};
