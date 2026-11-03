@@ -116,7 +116,8 @@
 <div class="muted" id="bjQueueError"></div><div id="bjQueueList"></div></div>
 </section>
 <section id="bjPrintSection" class="hidden">
-<div class="preview-toolbar"><div><h1 style="margin:0">BJ Purchase Order</h1><p class="sub">PO <span id="bjPrintLabel"></span> · your original Magic City Supply PDF, with only the requested items.</p></div><div class="row"><button onclick="bjGoBack()">← BJ Mode</button><button class="primary" onclick="bjExportOriginalPDF(false)">Open Original PDF / Print</button><button onclick="bjExportOriginalPDF(true)">Download Filled PDF</button></div></div>
+<div class="preview-toolbar"><div><h1 style="margin:0">BJ Purchase Order</h1><p class="sub">PO <span id="bjPrintLabel"></span> · same original Magic City Supply PDF in two versions: warehouse copy with locations, clean copy without.</p></div><div class="row"><button onclick="bjGoBack()">← BJ Mode</button><button class="primary" onclick="bjExportOriginalPDF(false,'both')">Print Both Copies</button><button onclick="bjExportOriginalPDF(false,'warehouse')">Warehouse Copy · Locations</button><button onclick="bjExportOriginalPDF(false,'clean')">Clean Copy · No Locations</button><button onclick="bjExportOriginalPDF(true,'both')">Download Both Copies</button></div></div>
+<p class="sub">The preview below is the internal warehouse copy. “Print Both Copies” creates one letter-size PDF with the warehouse copy first and the clean copy second. The two copies have identical item quantities, pricing, and totals.</p>
 <div id="bjPDFStatus" class="sub" role="status"></div><div class="preview-surface" id="bjPrintPaper"><div class="card">Preparing the original Magic City PDF…</div></div>
 </section>
 <section id="activitySection" class="hidden">
