@@ -3,7 +3,7 @@ const assert=require('node:assert/strict');
 const crypto=require('node:crypto');
 const PDFLib=require('pdf-lib');
 globalThis.PDFLib=PDFLib;
-const {bjFillOriginalPDF,bjCalculatePriceSummary,bjFormatUSD}=require('../../csg-inventory/bj-pdf.js');
+const {bjFillOriginalPDF,bjFillBothCopiesPDF,bjLocationFieldsForCopy,bjCalculatePriceSummary,bjFormatUSD}=require('../../csg-inventory/bj-pdf.js');
 (async()=>{
  const b64=fs.readFileSync('csg-inventory/magic-city-po-template.base64','utf8').trim();
  const base=Buffer.from(b64,'base64');
@@ -48,6 +48,33 @@ const {bjFillOriginalPDF,bjCalculatePriceSummary,bjFormatUSD}=require('../../csg
  const manyPriced=await PDFLib.PDFDocument.load(await bjFillOriginalPDF(mock,base));
  assert.equal(manyPriced.getPageCount(),2,'Reserve room for a visible total on full pages');
  assert(manyPriced.getPages().every(p=>p.getHeight()===792));
+ // Two copies of the SAME order: only internal warehouse copy prints bin locations.
+ assert.deepEqual(bjLocationFieldsForCopy({location:'RACK-B7',source:'eiko'},'warehouse'),
+  {location:'RACK-B7',sourceLabel:'EiKO WAREHOUSE'});
+ assert.deepEqual(bjLocationFieldsForCopy({location:'RACK-B7',source:'eiko'},'clean'),
+  {location:'',sourceLabel:''});
+ assert.deepEqual(bjLocationFieldsForCopy({location:'A1',source:'ours'},'clean'),
+  {location:'',sourceLabel:''});
+ mock.lines=[{qty:2,part:'TWP1',code:'13661',description:'Wallpack',location:'RACK-B7',source:'eiko',price:17.25,per:'EA'}];
+ const warehouseBytes=await bjFillOriginalPDF(mock,base,{copyType:'warehouse'});
+ const cleanBytes=await bjFillOriginalPDF(mock,base,{copyType:'clean'});
+ const warehouse=await PDFLib.PDFDocument.load(warehouseBytes);
+ const clean=await PDFLib.PDFDocument.load(cleanBytes);
+ assert.equal(warehouse.getPageCount(),1);
+ assert.equal(clean.getPageCount(),1);
+ assert.equal(warehouse.getPages()[0].getHeight(),792);
+ assert.equal(clean.getPages()[0].getHeight(),792);
+ assert.match(warehouse.getTitle(),/Warehouse Copy/);
+ assert.match(clean.getTitle(),/Clean Copy/);
+ assert.notDeepEqual(Buffer.from(warehouseBytes),Buffer.from(cleanBytes));
+ const paired=await PDFLib.PDFDocument.load(await bjFillBothCopiesPDF(mock,base));
+ assert.equal(paired.getPageCount(),2,'One-item BJ PO prints exactly two copies on separate letter-size pages');
+ assert(paired.getPages().every(p=>p.getWidth()===612&&p.getHeight()===792));
+ assert.match(paired.getTitle(),/Warehouse and Clean Copies/);
+ mock.lines=Array.from({length:23},(_,i)=>({...mock.lines[0],part:'TWP-'+i}));
+ const many=await PDFLib.PDFDocument.load(await bjFillBothCopiesPDF(mock,base));
+ assert.equal(many.getPageCount(),4,'Two-page BJ order has two internal and two clean PDF pages');
+ console.log('BJ two-copy tests passed, clean copy hides locations, both copies use US letter pages.');
  console.log('BJ PDF money tests passed, $47.40 and partial total exclusion validated.');
  console.log('Original Magic City PDF source hash confirmed; 1-row=792pt, 22-row=792pt, 23-row=2 full pages.');
 })().catch(e=>{console.error(e);process.exitCode=1;});
