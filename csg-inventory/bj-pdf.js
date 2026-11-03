@@ -37,9 +37,24 @@ function bjPdfDate(value){
  return bjPdfClean(value);
 }
 
-/* Keep the actual supplied Magic City Supply vector template, but physically
-   shorten the page after the last filled row. One part => one short PDF page.
-   Up to 22 parts per physical page. No artificial HTML table or empty rows. */
+/* Fill the original Magic City Supply PDF full-size, with a priced-order
+   total immediately below the final item row when prices were entered. */
+function bjCalculatePriceSummary(lines){
+ const rows=Array.isArray(lines)?lines:[];
+ let totalCents=0,pricedLines=0;
+ for(const item of rows){
+  if(item?.price==null||String(item.price).trim()==='')continue;
+  const qty=Number(item.qty), price=Number(item.price);
+  if(!Number.isSafeInteger(qty)||qty<0||!Number.isFinite(price)||price<0)continue;
+  const cents=Math.round(price*100),extended=cents*qty;
+  if(!Number.isSafeInteger(extended))continue;
+  totalCents+=extended;pricedLines++;
+ }
+ return {totalCents,pricedLines,unpricedLines:rows.length-pricedLines};
+}
+function bjFormatUSD(cents){
+ return '$'+(cents/100).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
+}
 async function bjFillOriginalPDF(order,templateBytes){
  const {PDFDocument,StandardFonts,rgb}=await bjPdfLoadLibrary();
  const original=await PDFDocument.load(templateBytes);
@@ -50,7 +65,8 @@ async function bjFillOriginalPDF(order,templateBytes){
  const navy=rgb(.11,.21,.30),muted=rgb(.35,.46,.54),white=rgb(1,1,1);
  const lines=Array.isArray(order.lines)?order.lines:[];
  if(!lines.length)throw Error('This BJ request does not contain any item lines.');
- const maxRows=22,headHeight=307,rowHeight=19,footerHeight=67,sourceHeight=792,sourceWidth=612;
+ const totals=bjCalculatePriceSummary(lines);
+ const maxRows=totals.pricedLines>0?20:22,headHeight=307,rowHeight=19,footerHeight=67,sourceHeight=792,sourceWidth=612;
  for(let offset=0;offset<lines.length;offset+=maxRows){
   const visible=lines.slice(offset,offset+maxRows);
   const n=visible.length;
@@ -110,6 +126,19 @@ async function bjFillOriginalPDF(order,templateBytes){
   }
   // Footer is preserved directly from the original template and shifted
   // upward to follow the final item. The buyer remains blank unless entered.
+  // Total is printed directly under the last entered item on a full-size page.
+  if(totals.pricedLines>0){
+   const pageTotals=bjCalculatePriceSummary(visible);
+   const isLastPage=offset+n>=lines.length;
+   const money=isLastPage?totals.totalCents:pageTotals.totalCents;
+   const heading=isLastPage?(totals.unpricedLines?'TOTAL (PRICED ITEMS ONLY)':'ORDER TOTAL'):'PAGE SUBTOTAL';
+   const y=headHeight+n*rowHeight+9;
+   page.drawLine({start:{x:355,y:top(y)},end:{x:566,y:top(y)},thickness:.7,color:muted});
+   put(357,y+17,heading,{size:8,width:175,boldText:true});
+   put(565,y+17,bjFormatUSD(money),{size:11,width:118,boldText:true,align:'right'});
+   if(isLastPage&&totals.unpricedLines)
+    put(357,y+30,totals.unpricedLines+' item(s) without prices excluded',{size:7,width:206,color:muted});
+  }
   const buyer=bjPdfClean(order.buyer||'');
   if(buyer){
    const footerTop=sourceHeight-footerHeight;
@@ -144,7 +173,11 @@ async function bjPreviewOriginalPDF(order){
    frame.style.cssText='display:block;width:100%;height:min(76vh,850px);min-height:420px;border:0;background:#fff';
    panel.replaceChildren(frame);
   }
-  if(status)status.textContent=generated.length.toLocaleString()+' PDF bytes · '+Math.ceil(order.lines.length/22)+' page(s) · '+order.lines.length+' filled line(s). No empty rows.';
+  if(status){
+   const info=bjCalculatePriceSummary(order.lines);
+   status.textContent=generated.length.toLocaleString()+' PDF bytes · '+Math.ceil(order.lines.length/(info.pricedLines?20:22))+' page(s) · '+order.lines.length+' filled line(s)'
+     +(info.pricedLines?' · '+(info.unpricedLines?'Priced items total: ':'Order total: ')+bjFormatUSD(info.totalCents):'');
+  }
  }catch(error){
   if(status)status.textContent='Preview unavailable: '+error.message+'. Try Open Original PDF or Download Filled PDF.';
   if(panel)panel.innerHTML='<div class="card">Could not render the PDF preview. Use the download button above.</div>';
@@ -174,11 +207,15 @@ async function bjExportOriginalPDF(download=false){
   }else{
    const a=document.createElement('a');a.href=url;a.download=filename;document.body.appendChild(a);a.click();a.remove();
   }
-  if(status)status.textContent='Filled original PDF created. '+Math.max(1,Math.ceil((order.lines||[]).length/22))+' page(s), '+(order.lines||[]).length+' printed part line(s).';
+  if(status){
+   const info=bjCalculatePriceSummary(order.lines);
+   status.textContent='Filled original PDF created. '+Math.ceil(order.lines.length/(info.pricedLines?20:22))+' page(s), '+order.lines.length+' printed part line(s)'
+     +(info.pricedLines?', '+(info.unpricedLines?'priced items total ':'order total ')+bjFormatUSD(info.totalCents):'')+'.';
+  }
   setTimeout(()=>URL.revokeObjectURL(url),120000);
  }catch(error){
   if(tab)try{tab.close()}catch{}
   if(status)status.textContent='Could not generate PDF: '+error.message;
  }finally{bjPdfPrinting=false}
 }
-if(typeof module!=='undefined'&&module.exports)module.exports={bjFillOriginalPDF,bjPdfDate,bjPdfClean};
+if(typeof module!=='undefined'&&module.exports)module.exports={bjFillOriginalPDF,bjPdfDate,bjPdfClean,bjCalculatePriceSummary,bjFormatUSD};
