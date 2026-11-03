@@ -134,7 +134,7 @@ async function bjSubmit(){
  try{
   const out=await bjApi(bjEditingId?'update':'create',body);
   bjEditingId=null;bjLines=[bjLineDefault()];bjAssignFields({});bjRenderLines();localStorage.removeItem(bjDraftKey());
-  await bjPoll();bjToast('BJ order '+out.order.po_number+' saved and staff alerted. No supplier stock was changed.');
+  await bjPoll();bjToast('BJ order '+out.order.po_number+' saved. Filled PDF queued for email to Brent (checked hourly). Staff alerted; supplier stock unchanged.');
   bjShowPrintObject(out.order);
  }catch(e){bjToast(e.message,true)}
  finally{button.disabled=false;button.textContent='Submit BJ request & notify team'}
