@@ -3,7 +3,7 @@ const assert=require('node:assert/strict');
 const crypto=require('node:crypto');
 const PDFLib=require('pdf-lib');
 globalThis.PDFLib=PDFLib;
-const {bjFillOriginalPDF}=require('../../csg-inventory/bj-pdf.js');
+const {bjFillOriginalPDF,bjCalculatePriceSummary,bjFormatUSD}=require('../../csg-inventory/bj-pdf.js');
 (async()=>{
  const b64=fs.readFileSync('csg-inventory/magic-city-po-template.base64','utf8').trim();
  const base=Buffer.from(b64,'base64');
@@ -15,6 +15,7 @@ const {bjFillOriginalPDF}=require('../../csg-inventory/bj-pdf.js');
  const mock={po_number:'CSG-0001',order_date:'2026-10-20',buyer:'',vendor_address:'',
  ship_to_address:'',ship_via:'',terms:'',fob:'',date_required:null,
  lines:[{qty:5,part:'SEN5A-SPPR-WH',code:'13861',description:'Ceiling sensor',location:'1-6-A2',per:'EA',price:null}]};
+ assert.equal(bjCalculatePriceSummary(mock.lines).pricedLines,0);
  const single=await bjFillOriginalPDF(mock,base);
  const one=await PDFLib.PDFDocument.load(single);
  assert.equal(one.getPageCount(),1,'One item must generate exactly ONE page');
@@ -28,5 +29,25 @@ const {bjFillOriginalPDF}=require('../../csg-inventory/bj-pdf.js');
  const twentyThree=await PDFLib.PDFDocument.load(await bjFillOriginalPDF(mock,base));
  assert.equal(twentyThree.getPageCount(),2,'23 items create exactly two pages');
  assert.equal(twentyThree.getPages()[1].getHeight(),792,'Second page remains full letter-size for one extra item');
+ const priced=[
+  {qty:3,price:12.50,part:'PRICED-A',code:'111',location:'A1'},
+  {qty:2,price:4.95,part:'PRICED-B',code:'222',location:'A2'}
+ ];
+ const total=bjCalculatePriceSummary(priced);
+ assert.equal(total.totalCents,4740,'3 × 12.50 + 2 × 4.95 = 47.40');
+ assert.equal(total.pricedLines,2);
+ assert.equal(bjFormatUSD(total.totalCents),'$47.40');
+ const mixed=bjCalculatePriceSummary([...priced,{qty:7,price:null}]);
+ assert.equal(mixed.totalCents,4740);
+ assert.equal(mixed.unpricedLines,1,'Missing price must never count as free');
+ mock.lines=priced;
+ const pricedPDF=await PDFLib.PDFDocument.load(await bjFillOriginalPDF(mock,base));
+ assert.equal(pricedPDF.getPageCount(),1);
+ assert.equal(pricedPDF.getPages()[0].getHeight(),792);
+ mock.lines=Array.from({length:20},(_,i)=>({...priced[0],part:'P-'+i}));
+ const manyPriced=await PDFLib.PDFDocument.load(await bjFillOriginalPDF(mock,base));
+ assert.equal(manyPriced.getPageCount(),2,'Reserve room for a visible total on full pages');
+ assert(manyPriced.getPages().every(p=>p.getHeight()===792));
+ console.log('BJ PDF money tests passed, $47.40 and partial total exclusion validated.');
  console.log('Original Magic City PDF source hash confirmed; 1-row=792pt, 22-row=792pt, 23-row=2 full pages.');
 })().catch(e=>{console.error(e);process.exitCode=1;});
