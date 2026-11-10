@@ -80,7 +80,7 @@
 <h2 style="margin-top:0;font-size:17px">1 · Upload a packing list</h2>
 <div class="grid2"><div><label>Take a photo (phone camera)</label><input type="file" id="receivingCamera" accept="image/*" capture="environment" onchange="receivingFileChanged(this)"></div>
 <div><label>Upload photo or PDF</label><input type="file" id="receivingUpload" accept="image/*,application/pdf,.pdf" onchange="receivingFileChanged(this)"></div></div>
-<p class="muted" style="margin-top:9px">Photos, scanned PDF and selectable-text PDF supported (up to 14 MB, first three PDF pages). Recognition runs in your browser; the app doesn't archive the original image.</p>
+<p class="muted" style="margin-top:9px">Photos and PDFs up to 14 MB are supported (the first three PDF pages are scanned for text). <strong>When you confirm receiving, the original photo or PDF is saved securely with the receipt</strong> so signed-in staff can view or download it later from Receiving History. You can still receive items without an attachment.</p>
 <div id="receivingFilePreview"></div>
 <div class="row" style="margin-top:13px"><button id="receivingScanButton" onclick="receivingRunScan()">↻ Scan selected document again</button><span class="muted" id="receivingFileLabel">No document selected</span></div>
 <div id="receivingStatus" class="alert hidden" role="status" aria-live="polite"></div>
@@ -99,7 +99,7 @@
 <div id="receivingLines"></div>
 <div class="card"><div class="section-head"><strong id="receivingSummary">0 lines · 0 units</strong><button id="receivePostButton" class="primary" onclick="receivingPost()" disabled>Confirm & add received stock</button></div>
 <p class="muted">Approved counts will increase stock only once for each unique supplier and packing-list reference. Corrections can be reversed if stock is still available.</p></div>
-<div class="section-head" style="margin-top:32px"><div><h2 style="margin:0">Receiving history</h2><p class="sub">Recorded packing lists and posted quantities.</p></div></div>
+<div class="section-head" style="margin-top:32px"><div><h2 style="margin:0">Receiving history</h2><p class="sub">Recorded packing lists, quantities, and saved original photos/PDFs. Reopen the document anytime from its receipt.</p></div></div>
 <div id="receivingHistory"></div>
 </section>
 <section id="bjSection" class="hidden">
