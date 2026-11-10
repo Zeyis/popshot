@@ -8,6 +8,7 @@ on:
       - '.github/scripts/test-bj.js'
       - '.github/scripts/test-bj-original-pdf.js'
       - '.github/scripts/test-eiko-activity.js'
+      - '.github/scripts/test-receiving-archive.js'
       - '.github/scripts/test-inventory-report.js'
   workflow_dispatch:
 permissions:
@@ -41,6 +42,7 @@ jobs:
           node --check csg-inventory/receiving-ocr.js
           node --check csg-inventory/receiving.js
           node .github/scripts/test-receiving.js
+          node .github/scripts/test-receiving-archive.js
           node --check csg-inventory/bj.js
           node .github/scripts/test-bj.js
           node --check csg-inventory/bj-pdf.js
