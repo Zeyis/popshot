@@ -128,7 +128,7 @@ async function csgSupplierReportPDF(report,options={}){
   const footer='Supplier coordination only  |  Quantities subject to change  |  No pricing or internal warehouse data';
   line(left,49,right,49);
   write(footer,left,36,7,regular,c.muted,{maxWidth:445});
-  write('Page '+pageNo,567,36,7.5,semibold,c.muted,{right:true});
+
   if(first){
    write(report.supplier.toUpperCase()+' INVENTORY',left,631,21,semibold,c.ink);
    write('On-hand stock snapshot',left,612,10,regular,c.muted);
@@ -183,12 +183,12 @@ async function csgSupplierReportPDF(report,options={}){
   }
  }
  const final=pdf.getPages();
- // Footer pages are numbered after all pages have been laid out.
- if(final.length>1){
-  for(let i=0;i<final.length;i++){
-   const p=final[i];
-   p.drawText(' / '+final.length,{x:567,y:36,size:7.5,font:semibold,color:c.muted});
-  }
+ // Number the footer after the complete report is paginated.
+ for(let i=0;i<final.length;i++){
+  const label='Page '+(i+1)+' of '+final.length;
+  final[i].drawText(label,{
+   x:567-semibold.widthOfTextAtSize(label,7.5),y:36,size:7.5,font:semibold,color:c.muted
+  });
  }
  pdf.setTitle('Cahaba Sales Group - '+report.supplier+' Inventory Report');
  pdf.setAuthor('Cahaba Sales Group');
