@@ -101,8 +101,19 @@ function receivingSummary(){
  el.textContent=receivingLines.length+' lines · '+total.toLocaleString()+' units to receive · '+newCount+' new item(s)'+(invalid?' · '+invalid+' incomplete':'');
  $('receivePostButton').disabled=receivingBusy||receivingLines.length===0||invalid>0;
 }
-async function receivingCall(requestBody){
- const r=await fetch(RECEIVING_API,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({token,version:stateVersion,...requestBody}),cache:'no-store'});
+async function receivingCall(requestBody,documentFile=null){
+ let body,headers;
+ if(documentFile){
+  const form=new FormData();
+  form.append('payload',JSON.stringify({token,version:stateVersion,...requestBody}));
+  form.append('document',documentFile,documentFile.name);
+  body=form;
+  headers={}; // Browser sets multipart boundary; never override it.
+ }else{
+  body=JSON.stringify({token,version:stateVersion,...requestBody});
+  headers={'content-type':'application/json'};
+ }
+ const r=await fetch(RECEIVING_API,{method:'POST',headers,body,cache:'no-store'});
  const data=await r.json().catch(()=>({error:'Could not contact receiving service.'}));
  if(!r.ok){const error=Error(data.error||'Receiving failed.');error.status=r.status;error.conflict=!!data.conflict;throw error}
  return data;
@@ -116,7 +127,7 @@ async function receivingPost(){
  if(!confirm('POST RECEIVING TO LIVE INVENTORY?\n\nSupplier: '+supplier+'\nPacking list #: '+reference+'\n'+receivingLines.length+' items / '+units.toLocaleString()+' total units.\n\nEvery quantity will ADD to the current stock, not replace it.\n\nConfirm you checked shipped numbers and units per case against the original document.'))return;
  receivingBusy=true;receivingSummary();
  try{
-  const response=await receivingCall({action:'receive',confirmed:true,supplier,reference,documentDate:$('receiveDate').value,fileName:receivingFile?.name||'Manual entry',notes:$('receiveNotes').value,lines:receivingLines.map(r=>({division:r.division,part:r.part,code:r.code,description:r.description,mode:r.mode,shipped:Number(r.shipped),pack:Number(r.pack)}))});
+  const response=await receivingCall({action:'receive',confirmed:true,supplier,reference,documentDate:$('receiveDate').value,fileName:receivingFile?.name||'Manual entry',notes:$('receiveNotes').value,lines:receivingLines.map(r=>({division:r.division,part:r.part,code:r.code,description:r.description,mode:r.mode,shipped:Number(r.shipped),pack:Number(r.pack)}))},receivingFile);
   receivingLines=[];receivingFile=null;
   if(receivingObjectURL){URL.revokeObjectURL(receivingObjectURL);receivingObjectURL=null}
   for(const id of ['receiveSupplier','receiveReference','receiveDate','receiveNotes','receivingRawText','receivingNewPart'])$(id).value='';
@@ -124,14 +135,35 @@ async function receivingPost(){
   $('receivingUpload').value='';$('receivingCamera').value='';
   await refresh();
   receivingRenderRows();receivingHistory();
-  receiveMessage('Received '+response.receipt.totalUnits+' units. Packing list '+response.receipt.reference+' was saved to inventory history.');
+  receiveMessage('Received '+response.receipt.totalUnits+' units. Packing list '+response.receipt.reference+
+   (response.receipt.document?.path?' and its original photo/PDF were securely saved to Receiving History.':' was saved to Receiving History (no photo attached).'));
  }catch(error){receiveMessage(error.message,true);if(error.conflict)await refresh().catch(()=>{})}
  finally{receivingBusy=false;receivingSummary()}
+}
+async function receivingOpenDocument(id,download=false){
+ // Reserve an actual tab during the tap so iPhone Safari does not block it.
+ const tab=window.open('','_blank');
+ try{
+  const response=await receivingCall({action:'view_document',id,download});
+  if(!response.url)throw Error('Could not obtain the saved document.');
+  if(tab)tab.location.href=response.url;
+  else{
+   const link=document.createElement('a');
+   link.href=response.url;link.target='_blank';link.rel='noopener noreferrer';
+   if(download)link.download=response.fileName||'packing-list';
+   document.body.appendChild(link);link.click();link.remove();
+  }
+ }catch(error){
+  if(tab)try{tab.close()}catch{}
+  receiveMessage('Could not open archived packing list: '+error.message,true);
+ }
 }
 function receivingHistory(){
  const host=$('receivingHistory');if(!host)return;
  host.innerHTML=(db.receipts||[]).slice(0,70).map(r=>'<div class="card"><div class="section-head"><div><strong>'+E(r.supplier)+' · '+E(r.reference)+'</strong><p class="muted" style="margin:4px 0">'+dateTime(r.receivedAt)+' · '+E(r.receivedBy)+' · '+E(r.fileName||'Manual')+'</p></div><span class="badge'+(r.status==='reversed'?' cancelled':'')+'">'+(r.status==='reversed'?'Reversed':'Received')+'</span></div>'
- +'<p><strong>'+Number(r.totalUnits).toLocaleString()+' units</strong> · '+r.lines.length+' lines</p><details><summary class="muted" style="cursor:pointer">View received items</summary><div style="margin:10px 0">'+r.lines.map(l=>'<p class="muted">'+E(l.division==='voltec'?'Voltec':'EiKO')+' · '+E(l.part)+' · '+Number(l.qty)+' units ('+Number(l.shipped)+' '+E(l.mode)+(l.mode==='cases'?' × '+l.pack+'/case':'')+')</p>').join('')+'</div></details>'
+ +'<p><strong>'+Number(r.totalUnits).toLocaleString()+' units</strong> · '+r.lines.length+' lines</p>'
+ +(r.document?.path?'<div class="row" style="gap:8px;flex-wrap:wrap;margin:9px 0"><span class="tag">Original document saved</span><button class="slim" onclick="receivingOpenDocument(\''+E(r.id)+'\')">View saved photo / PDF</button><button class="slim" onclick="receivingOpenDocument(\''+E(r.id)+'\',true)">Download original</button></div>':'<p class="muted" style="font-size:12px">No original photo/PDF archived with this receipt.</p>')
+ +'<details><summary class="muted" style="cursor:pointer">View received items</summary><div style="margin:10px 0">'+r.lines.map(l=>'<p class="muted">'+E(l.division==='voltec'?'Voltec':'EiKO')+' · '+E(l.part)+' · '+Number(l.qty)+' units ('+Number(l.shipped)+' '+E(l.mode)+(l.mode==='cases'?' × '+l.pack+'/case':'')+')</p>').join('')+'</div></details>'
  +(r.status==='posted'?'<button class="slim danger" onclick="receivingReverse(\''+E(r.id)+'\')">Reverse this receipt</button>':'')+'</div>').join('')||'<div class="card">No received packing lists yet.</div>';
 }
 async function receivingReverse(id){
