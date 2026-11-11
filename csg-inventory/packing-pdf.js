@@ -195,6 +195,8 @@ function packingStatus(message,isError=false){
 }
 async function packingPreviewPDF(order){
  const current=++packingPreviewSerial;
+ // A newly opened order must never reuse the previous order's PDF blob.
+ if(packingPreviewObjectURL){URL.revokeObjectURL(packingPreviewObjectURL);packingPreviewObjectURL=null}
  packingCurrentOrderId=order.id;
  const target=document.getElementById('packingPDFPreview');
  const html=document.getElementById('packingHtmlFallback');
