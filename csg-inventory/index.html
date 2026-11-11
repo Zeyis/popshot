@@ -71,7 +71,7 @@
 <div class="row" style="margin-top:17px"><button class="primary" onclick="savePart()">Save to shared inventory</button><button onclick="tab(activeDivision)">Cancel</button></div></div></section>
 <section id="orderSection" class="hidden"><div class="section-head"><div><h1>Create an order</h1><p class="sub">Search and add stock from either brand — one order, one packing list.</p></div></div>
 <div class="card"><h2 style="margin-top:0;font-size:18px">Ship-to information</h2><div class="grid2"><div><label>Customer / company *</label><input id="orderCustomer" placeholder="Customer name"></div><div><label>Job / project</label><input id="orderJob" placeholder="Project name"></div><div><label>Attention / recipient</label><input id="orderAttention"></div><div><label>Street address</label><input id="orderStreet"></div><div><label>City</label><input id="orderCity"></div><div><label>State</label><input id="orderState" placeholder="AL" maxlength="30" autocapitalize="characters"></div><div><label>ZIP code</label><input id="orderZip" inputmode="numeric"></div></div><label>Notes</label><textarea id="orderNotes" rows="2"></textarea></div>
-<div class="card"><h2 style="margin-top:0;font-size:18px">Pull items</h2><input id="orderSearch" oninput="renderMatches()" placeholder="Search any EiKO or Voltec part"><div id="orderMatches" class="results"></div><h3 style="font-size:15px">Selected items</h3><div id="cartRows"></div><div class="row" style="justify-content:space-between;margin-top:17px"><strong id="cartTotal">0 units</strong><button class="primary" id="placeOrderButton" onclick="placeOrder()">Create order & deduct inventory</button></div></div></section>
+<div class="card"><h2 style="margin-top:0;font-size:18px">Pull items</h2><input id="orderSearch" oninput="renderMatches()" placeholder="Search any EiKO or Voltec part"><div id="orderMatches" class="results"></div><h3 style="font-size:15px">Selected items</h3><div id="cartRows"></div><div class="row" style="justify-content:space-between;margin-top:17px"><strong id="cartTotal">0 units</strong><button class="primary" id="placeOrderButton" onclick="placeOrder()">Create Order & Open Packing List</button></div></div></section>
 <section id="ordersSection" class="hidden"><div class="section-head"><div><h1>Order history</h1><p class="sub">Open an order's professional packing list, or cancel and restore quantities.</p></div><input id="orderFilter" oninput="renderOrders()" placeholder="Search order / job" style="max-width:280px"></div><div id="ordersList"></div></section>
 <section id="receivingSection" class="hidden">
 <div class="section-head"><div><h1>Packing List Receiving</h1><p class="sub">Scan a supplier packing list or enter the details manually. Review every line before adding stock.</p></div><span class="stock-pill">Staff PIN session · Shared inventory</span></div>
@@ -149,7 +149,7 @@
 <option value="other">Other actions</option>
 </select></div><div id="activityCount" class="activity-count"></div>
 <div id="activityRows"></div></section>
-<section id="packingSection" class="hidden"><div class="preview-toolbar"><div><h1 style="margin:0">Packing list</h1><p class="sub" style="margin:3px 0">Preview and print the prepared document.</p></div><div class="row"><button onclick="tab('orders')">← Orders</button><button class="primary" onclick="window.print()">Print / Save PDF</button></div></div><div class="preview-surface"><article id="packingPaper" class="packingPaper"></article></div></section>
+<section id="packingSection" class="hidden"><div class="preview-toolbar"><div><h1 style="margin:0">Packing List</h1><p class="sub" style="margin:3px 0">The PDF opens here automatically after creating an order. Use Print or Download to save a copy.</p></div><div class="row"><button onclick="tab('orders')">← Orders</button><button class="primary" id="packingPdfOpen" onclick="packingOpenPDF(false)">Open PDF / Print</button><button id="packingPdfDownload" onclick="packingOpenPDF(true)">Download PDF</button></div></div><p id="packingPdfStatus" class="sub" role="status" aria-live="polite"></p><div id="packingPDFPreview" class="preview-surface hidden"></div><div class="preview-surface" id="packingHtmlFallback"><article id="packingPaper" class="packingPaper"></article></div></section>
 </main>
 <script>
 'use strict';
@@ -332,9 +332,18 @@ async function placeOrder(){
   if(!confirm('Create this order and deduct '+lines.reduce((n,l)=>n+l.qty,0)+' units from shared inventory?'))return;
   const btn=$('placeOrderButton');btn.disabled=true;
   try{
-   await change('order',{customer,job,attention:titleCase($('orderAttention').value),street:titleCase($('orderStreet').value),city:titleCase($('orderCity').value),state:$('orderState').value.trim().toUpperCase(),zip:$('orderZip').value.trim(),notes:$('orderNotes').value,lines});
+   const existingIds=new Set((db.orders||[]).map(x=>x.id));
+   const response=await change('order',{customer,job,attention:titleCase($('orderAttention').value),street:titleCase($('orderStreet').value),city:titleCase($('orderCity').value),state:$('orderState').value.trim().toUpperCase(),zip:$('orderZip').value.trim(),notes:$('orderNotes').value,lines});
+   const created=(response.content?.orders||[]).find(o=>!existingIds.has(o.id))
+     ||(response.content?.orders||[])[0];
    cart={};for(const id of ['orderCustomer','orderJob','orderAttention','orderStreet','orderCity','orderState','orderZip','orderNotes','orderSearch'])$(id).value='';
-   tab('orders');alertMsg('Order saved. Stock deducted and packing list ready to print.');
+   if(created){
+     openPacking(created.id);
+     alertMsg('Order '+created.number+' saved. Inventory deducted and packing-list PDF is being prepared.');
+   }else{
+     tab('orders');
+     alertMsg('Order saved. Open the order in history to view and print the packing-list PDF.');
+   }
   }finally{btn.disabled=false}
  }catch(error){alertMsg(error.message,true);if(error.conflict)refresh().catch(()=>{})}
 }
@@ -351,7 +360,7 @@ async function cancelOrder(id){
 function openPacking(id){
  const o=(db.orders||[]).find(x=>x.id===id);if(!o)return;
  if(o.status==='cancelled'){alertMsg('A cancelled order cannot be printed as an active packing list.',true);return}
- selectedOrder=id;renderPacking(id);tab('packing');
+ selectedOrder=id;renderPacking(id);tab('packing');window.packingPreviewPDF?.(o);
 }
 function renderPacking(id){
  const o=(db.orders||[]).find(x=>x.id===id);if(!o)return;
@@ -389,4 +398,4 @@ async function start(){
 document.addEventListener('visibilitychange',()=>{if(!document.hidden&&token)refresh().catch(()=>{})});
 setInterval(()=>{if(token&&!document.hidden&&activeTab!=='part'&&activeTab!=='order'&&activeTab!=='packing'&&activeTab!=='bj'&&activeTab!=='bjprint')refresh().catch(()=>{})},30000);
 start();
-</script><script src="receiving-ocr.js"></script><script src="receiving.js"></script><script src="bj-pdf.js"></script><script src="bj.js"></script><script src="eiko-autocomplete.js"></script><script src="activity-log.js"></script><script src="inventory-report.js"></script></body></html>
+</script><script src="receiving-ocr.js"></script><script src="receiving.js"></script><script src="bj-pdf.js"></script><script src="bj.js"></script><script src="eiko-autocomplete.js"></script><script src="activity-log.js"></script><script src="inventory-report.js"></script><script src="packing-pdf.js"></script></body></html>
