@@ -73,7 +73,7 @@ function packingShipmentSet(key,field,raw){
   if(input&&name!==field)input.value=v[name]===''?'':String(v[name]);
  }
  const note=document.getElementById('shipWeightNote_'+suffix);
- if(note)note.textContent=v.weightEstimated?'Estimate from manufacturer's full-case weight; confirm actual shipment weight.':
+ if(note)note.textContent=v.weightEstimated?'Estimate from manufacturer full-case weight; confirm actual shipment weight.':
   v.weightLb!==''?'Weight entered manually.':'Weight unknown — leave blank or weigh cartons.';
  if(typeof packingShipmentSummary==='function')packingShipmentSummary();
 }
