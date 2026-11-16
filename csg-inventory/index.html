@@ -29,6 +29,30 @@
 .packing-shipment-help{font-size:11px;color:#666;margin:9px 0 0;display:flex;flex-direction:column;gap:4px}
 .packing-shipment-help a{color:#333;text-decoration:underline}
 @media(max-width:620px){.packing-shipment-fields{gap:7px}.packing-shipment-fields input{padding:8px 5px;font-size:13px}}
+
+/* Voltec PDF fallback is grayscale and column-aligned; EiKO preview unchanged. */
+.voltec-fallback{background:white;color:#222;max-width:100%;font-family:Arial,Helvetica,sans-serif;font-size:12px}
+.voltec-fallback-head{display:flex;justify-content:space-between;align-items:center;border-bottom:3px solid #333;padding-bottom:17px;margin-bottom:18px;gap:15px}
+.voltec-fallback-head h2{color:#222;font-size:22px;margin:0}
+.voltec-fallback-head strong,.voltec-fallback-head small{display:block}
+.voltec-fallback-head small{color:#666;margin-top:5px}
+.voltec-fallback-meta{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:1px;background:#ddd;border:1px solid #ddd}
+.voltec-fallback-meta>div{padding:14px 11px;background:#f4f4f4;overflow-wrap:anywhere}
+.voltec-fallback-meta small,.voltec-fallback-address small{font-size:9px;color:#555;display:block;letter-spacing:.06em;font-weight:700;margin-bottom:5px}
+.voltec-fallback-address{display:grid;grid-template-columns:1fr 1fr;gap:25px;padding:25px 0;border-bottom:1px solid #bbb}
+.voltec-fallback-address strong{display:block;font-size:14px}
+.voltec-fallback-address p{margin:6px 0;color:#444;line-height:1.55}
+.voltec-fallback-caption{font-size:11px;font-weight:700;padding:17px 0;color:#444}
+.voltec-fallback-table{border-collapse:collapse;width:100%;font-size:11px}
+.voltec-fallback-table th{background:#333!important;color:#fff;padding:11px 5px;text-align:right;font-size:9px}
+.voltec-fallback-table th:first-child{text-align:left}
+.voltec-fallback-table td{padding:12px 5px;border-bottom:1px solid #ddd;vertical-align:top;text-align:right}
+.voltec-fallback-table td:first-child{text-align:left;overflow-wrap:anywhere}
+.voltec-fallback-table small{display:block;color:#777;margin-top:4px;font-size:9px}
+.voltec-fallback-table tr:nth-child(even){background:#f4f4f4}
+.voltec-fallback-total{background:#eee;padding:16px 12px;margin-top:13px;font-weight:700;font-size:11px}
+.voltec-fallback-notes{padding:15px 0;color:#555;font-size:11px;white-space:pre-wrap}
+@media(max-width:620px){.voltec-fallback-meta{grid-template-columns:1fr 1fr}.voltec-fallback{font-size:10px}.voltec-fallback-table{font-size:9px}.voltec-fallback-table th{font-size:7.5px;letter-spacing:0}.voltec-fallback-table td{padding:8px 2px}.voltec-fallback-head h2{font-size:16px}}
 </style><link rel="stylesheet" href="bj.css"><link rel="stylesheet" href="eiko-autocomplete.css"><link rel="stylesheet" href="activity-log.css"></head>
 <body>
 <header><div class="brand"><div class="emblem">CSG</div><div><div class="brand-name">CAHABA SALES GROUP</div><div class="brand-sub">WAREHOUSE · EiKO + VOLTEC</div></div></div><div class="user" id="identityHeader">Secure shared inventory</div></header>
@@ -406,6 +430,10 @@ function openPacking(id){
 }
 function renderPacking(id){
  const o=(db.orders||[]).find(x=>x.id===id);if(!o)return;
+ if((o.lines||[]).some(l=>l.division==='voltec')){
+  $('packingPaper').innerHTML=voltecPackingHTML(o);
+  return;
+ }
  const destCity=[titleCase(o.shipCity),String(o.shipState||'').toUpperCase()].filter(Boolean).map(E).join(', ');
  const destLine=[destCity,E(o.shipZip||'')].filter(Boolean).join(' ');
  const destParts=[o.recipient,o.shipAttention,o.shipStreet].filter(Boolean);
@@ -440,4 +468,4 @@ async function start(){
 document.addEventListener('visibilitychange',()=>{if(!document.hidden&&token)refresh().catch(()=>{})});
 setInterval(()=>{if(token&&!document.hidden&&activeTab!=='part'&&activeTab!=='order'&&activeTab!=='packing'&&activeTab!=='bj'&&activeTab!=='bjprint')refresh().catch(()=>{})},30000);
 start();
-</script><script src="receiving-ocr.js"></script><script src="receiving.js"></script><script src="bj-pdf.js"></script><script src="bj.js"></script><script src="eiko-autocomplete.js"></script><script src="activity-log.js"></script><script src="inventory-report.js"></script><script src="packing-shipment.js"></script><script src="packing-pdf.js"></script></body></html>
+</script><script src="receiving-ocr.js"></script><script src="receiving.js"></script><script src="bj-pdf.js"></script><script src="bj.js"></script><script src="eiko-autocomplete.js"></script><script src="activity-log.js"></script><script src="inventory-report.js"></script><script src="packing-shipment.js"></script><script src="voltec-packing.js"></script><script src="packing-pdf.js"></script></body></html>
