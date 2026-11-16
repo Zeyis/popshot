@@ -10,6 +10,7 @@ on:
       - '.github/scripts/test-eiko-activity.js'
       - '.github/scripts/test-receiving-archive.js'
       - '.github/scripts/test-packing-pdf.js'
+      - '.github/scripts/test-voltec-packing.js'
       - '.github/scripts/test-inventory-report.js'
   workflow_dispatch:
 permissions:
@@ -51,6 +52,8 @@ jobs:
           node --check csg-inventory/activity-log.js
           node --check csg-inventory/inventory-report.js
           node --check csg-inventory/packing-pdf.js
+          node --check csg-inventory/packing-shipment.js
+          node --check csg-inventory/voltec-packing.js
           node .github/scripts/test-eiko-activity.js
       - name: Test filled original Magic City Supply PDF
         run: |
@@ -58,6 +61,7 @@ jobs:
           NODE_PATH=/tmp/csg-pdf-test/node_modules node .github/scripts/test-bj-original-pdf.js
           NODE_PATH=/tmp/csg-pdf-test/node_modules node .github/scripts/test-inventory-report.js
           NODE_PATH=/tmp/csg-pdf-test/node_modules node .github/scripts/test-packing-pdf.js
+          NODE_PATH=/tmp/csg-pdf-test/node_modules node .github/scripts/test-voltec-packing.js
       - name: Smoke test BJ ordering and official EiKO product search
         run: node .github/scripts/test-bj-services.js
       - name: Configure Pages
