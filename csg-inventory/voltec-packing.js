@@ -1,0 +1,206 @@
+/* Voltec shipment-specific CSG packing slip.
+   Neutral black/gray layout, supplier order references, partial shipping and
+   verified/manually entered case and weight data. No employee field. */
+'use strict';
+function voltecPackingNormalize(raw){
+ if(!raw||!Array.isArray(raw.lines)||!raw.lines.length)throw Error('Missing saved packing-list items');
+ const lines=raw.lines.map((r,index)=>{
+  const ordered=Number(r.ordered??r.qty);
+  const shipped=Number(r.shipped??r.qty);
+  const backordered=Number(r.backordered??Math.max(0,ordered-shipped));
+  const casesPulled=(r.casesPulled==null||r.casesPulled==='')?null:Number(r.casesPulled);
+  const casePack=(r.casePack==null||r.casePack==='')?null:Number(r.casePack);
+  const weightLb=(r.weightLb==null||r.weightLb==='')?null:Number(r.weightLb);
+  return {index:index+1,part:String(r.part||''),code:String(r.code||''),
+   description:String(r.desc||''),division:r.division==='voltec'?'Voltec':'EiKO',
+   ordered,shipped,backordered,casesPulled,casePack,weightLb,
+   weightEstimated:r.weightEstimated===true};
+ });
+ return {number:String(raw.number||''),created:String(raw.created||''),
+  salesOrder:String(raw.voltecSalesOrder||''),customerPo:String(raw.customerPo||''),
+  job:String(raw.job||''),recipient:String(raw.recipient||''),
+  attention:String(raw.shipAttention||''),street:String(raw.shipStreet||''),
+  city:String(raw.shipCity||''),state:String(raw.shipState||''),zip:String(raw.shipZip||''),
+  notes:String(raw.notes||''),lines};
+}
+function voltecPackingSummary(lines){
+ const result={ordered:0,shipped:0,backordered:0,knownCases:0,casesKnown:0,knownLb:0,weightsKnown:0,estimatedWeight:false};
+ for(const l of lines){
+  result.ordered+=l.ordered;result.shipped+=l.shipped;result.backordered+=l.backordered;
+  if(l.casesPulled!==null){result.knownCases+=l.casesPulled;result.casesKnown++}
+  if(l.weightLb!==null){result.knownLb+=l.weightLb;result.weightsKnown++;if(l.weightEstimated)result.estimatedWeight=true}
+ }
+ return result;
+}
+async function voltecPackingBuildPDF(original,options={}){
+ const {PDFDocument,StandardFonts,rgb}=options.pdfLib||globalThis.PDFLib||await bjPdfLoadLibrary();
+ const saved=voltecPackingNormalize(original),summary=voltecPackingSummary(saved.lines);
+ const pdf=await PDFDocument.create(),normal=await pdf.embedFont(StandardFonts.Helvetica),
+  bold=await pdf.embedFont(StandardFonts.HelveticaBold);
+ const C={black:rgb(.13,.13,.13),dark:rgb(.21,.21,.21),mid:rgb(.41,.41,.41),
+  border:rgb(.75,.75,.75),light:rgb(.95,.95,.95),white:rgb(1,1,1)};
+ const pageW=612,pageH=792,left=42,right=570;
+ let logo=null;
+ if(options.logoBytes)try{logo=await pdf.embedJpg(options.logoBytes)}catch{}
+ let page=null,y=0;
+ const safe=value=>String(value??'').normalize('NFKD').replace(/[^\x20-\x7E]/g,' ').replace(/\s+/g,' ').trim();
+ const formattedDate=value=>{
+  const d=new Date(value||Date.now());return isNaN(d.getTime())?safe(value):d.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
+ };
+ const fit=(value,font,size,maxWidth)=>{
+  let result=safe(value);
+  if(font.widthOfTextAtSize(result,size)<=maxWidth)return result;
+  while(result.length>1&&font.widthOfTextAtSize(result+'...',size)>maxWidth)result=result.slice(0,-1);
+  return result+'...';
+ };
+ function put(text,x,at,size=9,strong=false,color=C.black,maxWidth=500,rightAlign=false){
+  const font=strong?bold:normal,str=fit(text,font,size,maxWidth);
+  if(!str)return;
+  page.drawText(str,{x:rightAlign?x-font.widthOfTextAtSize(str,size):x,y:at,size,font,color});
+ }
+ function rule(at,x1=left,x2=right,weight=.6,color=C.border){
+  page.drawLine({start:{x:x1,y:at},end:{x:x2,y:at},color,thickness:weight});
+ }
+ function wrap(text,maxWidth,font,size,maxLines=2){
+  const words=safe(text).split(/\s+/).filter(Boolean),lines=[];let current='';
+  for(const word of words){
+   const s=current?current+' '+word:word;
+   if(font.widthOfTextAtSize(s,size)<=maxWidth){current=s;continue}
+   if(current){lines.push(current);current='';if(lines.length>=maxLines)break}
+   current=fit(word,font,size,maxWidth);
+  }
+  if(current&&lines.length<maxLines)lines.push(current);
+  return lines;
+ }
+ function meta(label,value,x,at,width){
+  put(label,x,at,7.2,true,C.mid,width);
+  put(value||'-',x,at-18,9.1,true,C.dark,width);
+ }
+ function tableHeader(){
+  page.drawRectangle({x:left,y:y-35,width:right-left,height:35,color:C.dark});
+  const h=y-14;
+  put('PART / DESCRIPTION',left+9,h,7.7,true,C.white,195);
+  put('ORDER',259,h,6.7,true,C.white,45);
+  put('CODE',259,h-13,6.7,true,C.white,45);
+  put('ORDERED',335,h-6,7,true,C.white,45,true);
+  put('SHIPPED',382,h-6,7,true,C.white,45,true);
+  put('B/O',425,h-6,7,true,C.white,34,true);
+  put('CASES',473,h-6,7,true,C.white,44,true);
+  put('WEIGHT',563,h-1,7,true,C.white,69,true);
+  put('(LB)',563,h-13,6.4,true,C.white,69,true);
+  y-=35;
+ }
+ function pageHeader(first){
+  page=pdf.addPage([pageW,pageH]);
+  // white paper and CSG branding, designed to print clearly in black and white
+  if(logo){
+   page.drawRectangle({x:left,y:720,width:106,height:48,color:C.white});
+   const sized=logo.scaleToFit(102,45);
+   page.drawImage(logo,{x:left+(106-sized.width)/2,y:722+(45-sized.height)/2,
+    width:sized.width,height:sized.height});
+  }else put('CAHABA SALES GROUP',left,746,13,true,C.dark,245);
+  put('CAHABA SALES GROUP',logo?160:left,755,12.3,true,C.dark,230);
+  put('WAREHOUSE OPERATIONS',logo?160:left,737,8.2,false,C.mid,230);
+  put('PACKING SLIP',right,750,18,true,C.dark,194,true);
+  put(saved.number,right,728,9.6,true,C.mid,180,true);
+  rule(714,left,right,1.6,C.dark);
+  if(first){
+   // Three deliberately aligned reference blocks instead of scattered labels.
+   page.drawRectangle({x:left,y:640,width:528,height:57,color:C.light});
+   meta('CSG PO #',saved.number,left+12,681,148);
+   meta('VOLTEC SALES ORDER #',saved.salesOrder,218,681,165);
+   meta('CUSTOMER PO #',saved.customerPo,405,681,153);
+   meta('ORDER DATE',formattedDate(saved.created),left,624,150);
+   meta('JOB / PROJECT',saved.job,253,624,310);
+   rule(584);
+   put('SHIP FROM',left,565,8.3,true,C.mid);
+   put('Cahaba Sales Group',left,549,10.6,true,C.black,236);
+   put('113 45th Place North',left,532,8.7,false,C.dark);
+   put('Birmingham, AL 35222',left,517,8.7,false,C.dark);
+   put('SHIP TO',316,565,8.3,true,C.mid);
+   put(saved.recipient||'Destination not supplied',316,549,10.5,true,C.black,247);
+   const address=[saved.attention?('Attn: '+saved.attention):'',saved.street,
+     [saved.city,saved.state,saved.zip].filter(Boolean).join(' ')].filter(Boolean);
+   address.slice(0,3).forEach((v,i)=>put(v,316,532-i*14,8.7,false,C.dark,248));
+   rule(485);
+   put('SHIPMENT CONTENTS',left,467,10,true,C.black);
+   put(saved.lines.length+' part number(s)',right,467,8.2,false,C.mid,150,true);
+   y=452;
+  }else{
+   put('PACKING SLIP / CONTINUED',left,680,11,true,C.black);
+   put('CSG PO: '+saved.number+'  |  VOLTEC SO: '+(saved.salesOrder||'-')+
+    '  |  CUSTOMER PO: '+(saved.customerPo||'-'),left,662,8,false,C.mid,523);
+   y=641;
+  }
+  tableHeader();
+ }
+ function rowHeight(item){
+  let h=36;
+  if(safe(item.description).length>44)h+=10;
+  if(item.casePack)h+=12;
+  return h;
+ }
+ pageHeader(true);
+ for(const line of saved.lines){
+  const height=rowHeight(line);
+  if(y-height<139)pageHeader(false);
+  const bottom=y-height;
+  if(line.index%2===0)page.drawRectangle({x:left,y:bottom,width:right-left,height,color:C.light});
+  put(String(line.index).padStart(2,'0')+' '+line.part,left+9,y-15,8.3,true,C.dark,204);
+  const ds=wrap((line.division==='Voltec'?'':'EiKO  |  ')+line.description,200,normal,7,2);
+  ds.forEach((t,i)=>put(t,left+9,y-26-i*10,7,false,C.mid,202));
+  if(line.casePack)put('CASE PACK: '+line.casePack+' EA',left+9,bottom+6,6.4,false,C.mid,198);
+  put(line.code||'-',259,y-21,7.4,false,C.black,47);
+  put(line.ordered.toLocaleString('en-US'),335,y-21,9,true,C.dark,43,true);
+  put(line.shipped.toLocaleString('en-US'),382,y-21,9,true,C.dark,43,true);
+  put(line.backordered.toLocaleString('en-US'),425,y-21,9,true,C.dark,36,true);
+  if(line.casesPulled!==null)put(line.casesPulled.toLocaleString('en-US'),473,y-21,8.5,true,C.dark,42,true);
+  if(line.weightLb!==null)put((line.weightEstimated?'~':'')+line.weightLb.toFixed(2),563,y-21,8.7,true,C.dark,75,true);
+  rule(bottom,left,right,.5);
+  y=bottom;
+ }
+ // The summary belongs immediately below the final item; unused page stays white.
+ if(y<214)pageHeader(false);
+ const summaryTop=y-12;
+ page.drawRectangle({x:left,y:summaryTop-66,width:528,height:66,color:C.light});
+ put('SHIPMENT TOTALS',left+10,summaryTop-17,8.6,true,C.dark);
+ const metrics=[
+  ['ORDERED',summary.ordered.toLocaleString('en-US'),left+10,84],
+  ['SHIPPED',summary.shipped.toLocaleString('en-US'),left+112,80],
+  ['BACKORDERED',summary.backordered.toLocaleString('en-US'),left+218,87],
+  ['CASES PULLED',summary.casesKnown?String(summary.knownCases)+(summary.casesKnown<saved.lines.length?'*':''):'-',left+326,86],
+  ['WEIGHT (LB)',summary.weightsKnown?(summary.estimatedWeight?'~':'')+summary.knownLb.toFixed(2)+(summary.weightsKnown<saved.lines.length?'*':''):'-',left+440,88]
+ ];
+ for(const [label,val,x,width] of metrics){
+  put(label,x,summaryTop-33,7.0,true,C.mid,width);
+  put(val,x,summaryTop-52,13.0,true,C.dark,width);
+ }
+ let after=summaryTop-83;
+ if((summary.casesKnown&&summary.casesKnown<saved.lines.length)||
+    (summary.weightsKnown&&summary.weightsKnown<saved.lines.length))
+  put('* Totals include only lines with known cases / weights.',left,after,7.1,false,C.mid,524);
+ if(summary.estimatedWeight){
+  after-=13;put('~ Estimated from published full-case weights. Confirm actual shipment weight.',left,after,7,false,C.mid,526);
+ }
+ if(saved.notes){
+  after-=22;
+  if(after<88){pageHeader(false);after=y-20}
+  put('DELIVERY / HANDLING NOTES',left,after,8.4,true,C.mid);
+  const noteLines=wrap(saved.notes,510,normal,7.7,3);
+  noteLines.forEach((note,i)=>put(note,left,after-16-i*12,7.7,false,C.dark,516));
+ }
+ const pages=pdf.getPages();
+ for(let i=0;i<pages.length;i++){
+  const p=pages[i],label='Page '+(i+1)+' of '+pages.length;
+  p.drawLine({start:{x:left,y:58},end:{x:right,y:58},color:C.border,thickness:.6});
+  p.drawText('CAHABA SALES GROUP  |  113 45th Place North, Birmingham, AL 35222',
+   {x:left,y:43,font:normal,size:7.2,color:C.mid});
+  p.drawText(label,{x:right-bold.widthOfTextAtSize(label,8),y:43,font:bold,size:8,color:C.mid});
+ }
+ pdf.setTitle('Cahaba Sales Group - Voltec Packing Slip - '+saved.number);
+ pdf.setAuthor('Cahaba Sales Group');
+ pdf.setSubject('Voltec sales order shipment packing slip');
+ return pdf.save();
+}
+if(typeof module!=='undefined'&&module.exports)
+ module.exports={voltecPackingNormalize,voltecPackingSummary,voltecPackingBuildPDF};
