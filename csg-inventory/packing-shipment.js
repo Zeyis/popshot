@@ -2,9 +2,15 @@
    optional weights and partial shipments. Do not assume gross freight weight. */
 'use strict';
 const PACKING_KNOWN_SPECS={
- 'voltec:04-00102':{casePack:6,source:'Voltec manufacturer catalog',url:'https://mail.voltec-industries.com/gfci-adapters.html'},
- 'voltec:04-00105':{casePack:6,source:'Voltec manufacturer catalog',url:'https://mail.voltec-industries.com/gfci-adapters.html'},
- 'voltec:08-00743':{casePack:4,caseWeightLb:12,source:'Voltec product specifications',url:'https://voltecindustries.com/products/voltec-6600-lumen-ac-led-work-light'}
+ 'voltec:04-00102':{casePack:6,caseWeightLb:11,
+  source:'Voltec product catalog (legacy; confirm current packaging)',
+  url:'https://d3cacd5apmg13r.cloudfront.net/userfiles/ad/documents/voltec_08_00193_catalog.pdf'},
+ 'voltec:04-00105':{casePack:6,caseWeightLb:9,
+  source:'Voltec product catalog (legacy; confirm current packaging)',
+  url:'https://d3cacd5apmg13r.cloudfront.net/userfiles/ad/documents/voltec_08_00193_catalog.pdf'},
+ 'voltec:08-00743':{casePack:4,caseWeightLb:12,
+  source:'Voltec current product specifications',
+  url:'https://voltecindustries.com/products/voltec-6600-lumen-ac-led-work-light'}
 };
 const packingShipmentDraft={};
 function packingShipmentSpec(item,division){
@@ -71,6 +77,9 @@ function packingShipmentSet(key,field,raw){
   v.weightLb!==''?'Weight entered manually.':'Weight unknown — leave blank or weigh cartons.';
  if(typeof packingShipmentSummary==='function')packingShipmentSummary();
 }
+function packingShipmentIsVoltecOrder(cartEntries){
+ return Object.keys(cartEntries||{}).some(key=>key.startsWith('voltec:'));
+}
 function packingShipmentMarkup(key,item,ordered){
  const v=packingShipmentGet(key,item,ordered);
  const suffix=key.replace(/[^A-Za-z0-9]/g,'_'), esc=typeof E==='function'?E:(x=>String(x));
@@ -125,4 +134,4 @@ function packingShipmentClear(){
  for(const k of Object.keys(packingShipmentDraft))delete packingShipmentDraft[k];
 }
 if(typeof module!=='undefined'&&module.exports)
- module.exports={packingShipmentDefault,packingShipmentGet,packingShipmentLine,packingShipmentSpec,packingShipmentOrderedChanged,packingShipmentClear,packingShipmentSet};
+ module.exports={packingShipmentDefault,packingShipmentGet,packingShipmentLine,packingShipmentSpec,packingShipmentOrderedChanged,packingShipmentClear,packingShipmentSet,packingShipmentIsVoltecOrder};
