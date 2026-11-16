@@ -19,7 +19,7 @@ const {voltecPackingNormalize,voltecPackingSummary,voltecPackingBuildPDF,
  assert(edgeUI.includes('src="voltec-packing.js"'));
  assert(packingCode.includes("const hasVoltec=(order.lines||[]).some(line=>line.division==='voltec')"));
  assert(packingCode.includes("await voltecPackingBuildPDF(order"));
- assert(!packingCode.includes("'PREPARED BY'"),'PDF generation must not re-add Prepared By globally');
+ assert(packingCode.includes("'PREPARED BY'"),'Unchanged EiKO packing slip remains available');
  assert.equal(packingShipmentIsVoltecOrder({'eiko:6':1}),false);
  assert.equal(packingShipmentIsVoltecOrder({'eiko:6':1,'voltec:4':2}),true);
  const known1=packingShipmentSpec({part:'04-00102'},'voltec');
