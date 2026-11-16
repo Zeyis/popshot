@@ -18,6 +18,17 @@
 .supplier-report-panel .supplier-report-status{flex:0 0 100%;font-size:12px;color:#435c61;min-height:0}
 .supplier-report-status:empty{display:none}
 @media(max-width:640px){.supplier-report-actions{width:100%}.supplier-report-actions button{flex:1}}
+.packing-shipment-row{border:1px solid #d1d1d1;border-radius:10px;background:#fff;margin:11px 0;padding:14px}
+.packing-shipment-heading{display:flex;align-items:start;justify-content:space-between;gap:10px;margin-bottom:12px}
+.packing-shipment-heading strong{overflow-wrap:anywhere}
+.packing-shipment-heading .muted{font-size:12px;margin:4px 0 0}
+.packing-shipment-fields{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.packing-shipment-fields label{font-size:11px;font-weight:700;color:#444;display:flex;flex-direction:column;gap:5px}
+.packing-shipment-fields input{width:100%;min-width:0}
+.packing-shipment-fields .ship-readonly{min-height:42px;border:1px solid #d8d8d8;border-radius:8px;background:#f0f0f0;padding:10px 12px;font-weight:700;color:#333}
+.packing-shipment-help{font-size:11px;color:#666;margin:9px 0 0;display:flex;flex-direction:column;gap:4px}
+.packing-shipment-help a{color:#333;text-decoration:underline}
+@media(max-width:620px){.packing-shipment-fields{gap:7px}.packing-shipment-fields input{padding:8px 5px;font-size:13px}}
 </style><link rel="stylesheet" href="bj.css"><link rel="stylesheet" href="eiko-autocomplete.css"><link rel="stylesheet" href="activity-log.css"></head>
 <body>
 <header><div class="brand"><div class="emblem">CSG</div><div><div class="brand-name">CAHABA SALES GROUP</div><div class="brand-sub">WAREHOUSE · EiKO + VOLTEC</div></div></div><div class="user" id="identityHeader">Secure shared inventory</div></header>
@@ -70,8 +81,11 @@
 <label>Description / notes</label><textarea id="editDesc" rows="3"></textarea>
 <div class="row" style="margin-top:17px"><button class="primary" onclick="savePart()">Save to shared inventory</button><button onclick="tab(activeDivision)">Cancel</button></div></div></section>
 <section id="orderSection" class="hidden"><div class="section-head"><div><h1>Create an order</h1><p class="sub">Search and add stock from either brand — one order, one packing list.</p></div></div>
-<div class="card"><h2 style="margin-top:0;font-size:18px">Ship-to information</h2><div class="grid2"><div><label>Customer / company *</label><input id="orderCustomer" placeholder="Customer name"></div><div><label>Job / project</label><input id="orderJob" placeholder="Project name"></div><div><label>Attention / recipient</label><input id="orderAttention"></div><div><label>Street address</label><input id="orderStreet"></div><div><label>City</label><input id="orderCity"></div><div><label>State</label><input id="orderState" placeholder="AL" maxlength="30" autocapitalize="characters"></div><div><label>ZIP code</label><input id="orderZip" inputmode="numeric"></div></div><label>Notes</label><textarea id="orderNotes" rows="2"></textarea></div>
-<div class="card"><h2 style="margin-top:0;font-size:18px">Pull items</h2><input id="orderSearch" oninput="renderMatches()" placeholder="Search any EiKO or Voltec part"><div id="orderMatches" class="results"></div><h3 style="font-size:15px">Selected items</h3><div id="cartRows"></div><div class="row" style="justify-content:space-between;margin-top:17px"><strong id="cartTotal">0 units</strong><button class="primary" id="placeOrderButton" onclick="placeOrder()">Create Order & Open Packing List</button></div></div></section>
+<div class="card"><h2 style="margin-top:0;font-size:18px">Ship-to information</h2>
+<div id="voltecOrderReferences" class="hidden"><h3 style="font-size:14px;margin:2px 0 9px">Voltec shipping references</h3>
+<div class="grid2"><div><label>Voltec Sales Order #</label><input id="orderVoltecSales" maxlength="100" placeholder="Voltec SO # (optional)"></div><div><label>Customer PO #</label><input id="orderCustomerPO" maxlength="100" placeholder="Customer purchase order # (optional)"></div></div>
+<p class="sub">These references appear on Voltec packing slips only.</p></div><div class="grid2"><div><label>Customer / company *</label><input id="orderCustomer" placeholder="Customer name"></div><div><label>Job / project</label><input id="orderJob" placeholder="Project name"></div><div><label>Attention / recipient</label><input id="orderAttention"></div><div><label>Street address</label><input id="orderStreet"></div><div><label>City</label><input id="orderCity"></div><div><label>State</label><input id="orderState" placeholder="AL" maxlength="30" autocapitalize="characters"></div><div><label>ZIP code</label><input id="orderZip" inputmode="numeric"></div></div><label>Notes</label><textarea id="orderNotes" rows="2"></textarea></div>
+<div class="card"><h2 style="margin-top:0;font-size:18px">Pull items</h2><input id="orderSearch" oninput="renderMatches()" placeholder="Search any EiKO or Voltec part"><div id="orderMatches" class="results"></div><h3 style="font-size:15px">Selected items</h3><p id="voltecShipmentHelp" class="sub hidden">Voltec shipping details: ordered, shipped, backordered, cases pulled, case pack, and weight. Only shipped quantities are deducted from inventory. Unknown case packs and weights can be left blank.</p><div id="cartRows"></div><div class="row" style="justify-content:space-between;margin-top:17px"><strong id="cartTotal">0 units</strong><button class="primary" id="placeOrderButton" onclick="placeOrder()">Create Order & Open Packing List</button></div></div></section>
 <section id="ordersSection" class="hidden"><div class="section-head"><div><h1>Order history</h1><p class="sub">Open an order's professional packing list, or cancel and restore quantities.</p></div><input id="orderFilter" oninput="renderOrders()" placeholder="Search order / job" style="max-width:280px"></div><div id="ordersList"></div></section>
 <section id="receivingSection" class="hidden">
 <div class="section-head"><div><h1>Packing List Receiving</h1><p class="sub">Scan a supplier packing list or enter the details manually. Review every line before adding stock.</p></div><span class="stock-pill">Staff PIN session · Shared inventory</span></div>
@@ -304,39 +318,67 @@ function renderMatches(){
 }
 function addToCart(division,id){
  const key=keyFor(division,id),item=inventoryOf(division).find(x=>x.id===id);if(!item)return;
+ if(item.qty<1){alertMsg('No stock available to ship for '+item.part,true);return}
  if((cart[key]||0)>=item.qty){alertMsg('Not enough stock available for '+item.part,true);return}
- cart[key]=(cart[key]||0)+1;renderCart();
+ cart[key]=(cart[key]||0)+1;
+ if(division==='voltec')packingShipmentOrderedChanged(key,item,cart[key]);
+ renderCart();
 }
 function setCartQty(key,value){
- const n=Number(value);if(!Number.isInteger(n)||n<=0){delete cart[key];renderCart();return}
- cart[key]=n;renderCart();
+ const n=Number(value);
+ if(!Number.isSafeInteger(n)||n<=0){delete cart[key];delete packingShipmentDraft[key];renderCart();return}
+ const [division,id]=key.split(':'),item=inventoryOf(division).find(x=>x.id===Number(id));
+ cart[key]=n;
+ if(division==='voltec'&&item)packingShipmentOrderedChanged(key,item,n);
+ renderCart();
 }
-function removeCart(key){delete cart[key];renderCart()}
+function removeCart(key){delete cart[key];delete packingShipmentDraft[key];renderCart()}
 function renderCart(){
+ const hasVoltec=packingShipmentIsVoltecOrder(cart);
+ $('voltecOrderReferences').classList.toggle('hidden',!hasVoltec);
+ $('voltecShipmentHelp').classList.toggle('hidden',!hasVoltec);
  let total=0;
  $('cartRows').innerHTML=Object.keys(cart).map(key=>{
- const [division,id]=key.split(':'),x=inventoryOf(division).find(x=>x.id===Number(id)),qty=cart[key];
- if(!x)return '';
- total+=qty;
- return '<div class="cart-row"><div class="cart-details"><strong>'+E(x.part)+'</strong><span class="tag" style="margin-left:8px">'+brandLabel(division)+'</span><div class="muted">'+x.qty+' available</div></div><input type="number" min="1" max="'+x.qty+'" inputmode="numeric" value="'+qty+'" aria-label="Quantity" onchange="setCartQty(\''+E(key)+'\',this.value)"><button class="slim danger" onclick="removeCart(\''+E(key)+'\')">×</button></div>';
+  const [division,id]=key.split(':'),x=inventoryOf(division).find(x=>x.id===Number(id)),qty=cart[key];
+  if(!x)return '';
+  total+=Number(qty)||0;
+  if(division==='voltec')return packingShipmentMarkup(key,x,qty);
+  return '<div class="cart-row"><div class="cart-details"><strong>'+E(x.part)+'</strong><span class="tag" style="margin-left:8px">EiKO</span><div class="muted">'+x.qty+' available</div></div><input type="number" min="1" max="'+x.qty+'" inputmode="numeric" value="'+qty+'" aria-label="Quantity" onchange="setCartQty(\''+E(key)+'\',this.value)"><button class="slim danger" onclick="removeCart(\''+E(key)+'\')">×</button></div>';
  }).join('')||'<p class="sub">No items selected.</p>';
  $('cartTotal').textContent=total.toLocaleString()+' units';
+ if(hasVoltec)packingShipmentSummary();
 }
 async function placeOrder(){
  try{
   if(!Object.keys(cart).length)throw Error('Add items to the order first.');
   const customer=titleCase($('orderCustomer').value),job=$('orderJob').value.trim();
   if(!customer)throw Error('Customer / company is required.');
-  const lines=Object.entries(cart).map(([key,qty])=>{const [division,id]=key.split(':');return {division,id:Number(id),qty:Number(qty)}});
-  for(const l of lines){const x=inventoryOf(l.division).find(x=>x.id===l.id);if(!x||!Number.isSafeInteger(l.qty)||l.qty<1||l.qty>x.qty)throw Error('Check the selected quantities; some exceed available stock.')}
-  if(!confirm('Create this order and deduct '+lines.reduce((n,l)=>n+l.qty,0)+' units from shared inventory?'))return;
+  const hasVoltec=packingShipmentIsVoltecOrder(cart);
+  const lines=Object.entries(cart).map(([key,qty])=>{
+   const [division,id]=key.split(':'),item=inventoryOf(division).find(x=>x.id===Number(id)),ordered=Number(qty);
+   if(!item||!Number.isSafeInteger(ordered)||ordered<1)throw Error('Check the selected quantities.');
+   if(division==='voltec')return packingShipmentLine(key,item,ordered);
+   if(ordered>item.qty)throw Error('Not enough EiKO stock for '+item.part+'.');
+   return {division,id:Number(id),qty:ordered};
+  });
+  const shipped=lines.reduce((n,l)=>n+(l.shipped??l.qty),0),ordered=lines.reduce((n,l)=>n+l.qty,0);
+  if(shipped<1)throw Error('At least one unit must be shipped to create a packing list.');
+  if(!confirm(hasVoltec
+   ?'Create Voltec packing slip?\n\n'+ordered+' units ordered · '+shipped+' shipped · '+(ordered-shipped)+' backordered.\n\nOnly shipped units will be deducted from inventory.'
+   :'Create this order and deduct '+shipped+' units from shared inventory?'))return;
   const btn=$('placeOrderButton');btn.disabled=true;
   try{
    const existingIds=new Set((db.orders||[]).map(x=>x.id));
-   const response=await change('order',{customer,job,attention:titleCase($('orderAttention').value),street:titleCase($('orderStreet').value),city:titleCase($('orderCity').value),state:$('orderState').value.trim().toUpperCase(),zip:$('orderZip').value.trim(),notes:$('orderNotes').value,lines});
+   const response=await change('order',{customer,job,
+    voltecSalesOrder:hasVoltec?$('orderVoltecSales').value.trim():'',
+    customerPo:hasVoltec?$('orderCustomerPO').value.trim():'',
+    attention:titleCase($('orderAttention').value),street:titleCase($('orderStreet').value),
+    city:titleCase($('orderCity').value),state:$('orderState').value.trim().toUpperCase(),
+    zip:$('orderZip').value.trim(),notes:$('orderNotes').value,lines});
    const created=(response.content?.orders||[]).find(o=>!existingIds.has(o.id))
      ||(response.content?.orders||[])[0];
-   cart={};for(const id of ['orderCustomer','orderJob','orderAttention','orderStreet','orderCity','orderState','orderZip','orderNotes','orderSearch'])$(id).value='';
+   cart={};packingShipmentClear();
+   for(const id of ['orderCustomer','orderJob','orderVoltecSales','orderCustomerPO','orderAttention','orderStreet','orderCity','orderState','orderZip','orderNotes','orderSearch'])$(id).value='';
    if(created){
      openPacking(created.id);
      alertMsg('Order '+created.number+' saved. Inventory deducted and packing-list PDF is being prepared.');
@@ -398,4 +440,4 @@ async function start(){
 document.addEventListener('visibilitychange',()=>{if(!document.hidden&&token)refresh().catch(()=>{})});
 setInterval(()=>{if(token&&!document.hidden&&activeTab!=='part'&&activeTab!=='order'&&activeTab!=='packing'&&activeTab!=='bj'&&activeTab!=='bjprint')refresh().catch(()=>{})},30000);
 start();
-</script><script src="receiving-ocr.js"></script><script src="receiving.js"></script><script src="bj-pdf.js"></script><script src="bj.js"></script><script src="eiko-autocomplete.js"></script><script src="activity-log.js"></script><script src="inventory-report.js"></script><script src="packing-pdf.js"></script></body></html>
+</script><script src="receiving-ocr.js"></script><script src="receiving.js"></script><script src="bj-pdf.js"></script><script src="bj.js"></script><script src="eiko-autocomplete.js"></script><script src="activity-log.js"></script><script src="inventory-report.js"></script><script src="packing-shipment.js"></script><script src="packing-pdf.js"></script></body></html>
