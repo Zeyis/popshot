@@ -184,7 +184,10 @@ async function packingLoadLogo(){
 }
 async function packingGenerateBlob(order){
  const [lib,logo]=await Promise.all([bjPdfLoadLibrary(),packingLoadLogo().catch(()=>null)]);
- const bytes=await packingBuildPDF(order,{pdfLib:lib,logoBytes:logo});
+ const hasVoltec=(order.lines||[]).some(line=>line.division==='voltec');
+ const bytes=hasVoltec
+  ?await voltecPackingBuildPDF(order,{pdfLib:lib,logoBytes:logo})
+  :await packingBuildPDF(order,{pdfLib:lib,logoBytes:logo});
  return new Blob([bytes],{type:'application/pdf'});
 }
 function packingStatus(message,isError=false){
