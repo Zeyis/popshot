@@ -69,7 +69,8 @@
 <nav class="tabs" aria-label="Warehouse sections">
 <button id="nav-eiko" class="active" onclick="tab('eiko')">EiKO Inventory</button>
 <button id="nav-voltec" onclick="tab('voltec')">Voltec Inventory</button>
-<button id="nav-order" onclick="tab('order')">Create Order</button>
+<button id="nav-order-eiko" onclick="tab('order-eiko')">Create EiKO Order</button>
+<button id="nav-order-voltec" onclick="tab('order-voltec')">Create Voltec Order</button>
 <button id="nav-orders" onclick="tab('orders')">Orders</button>
 <button id="nav-bj" onclick="tab('bj')">BJ Mode <span id="bjNavBadge" class="bj-badge hidden">0</span></button>
 <button id="nav-receiving" onclick="tab('receiving')">Packing List Receiving</button>
@@ -104,12 +105,12 @@
 <div class="grid2"><div><label>Quantity on hand — replace, do not add</label><input id="editQty" type="number" inputmode="numeric" min="0" step="1"></div><div><label>Low-stock alert threshold</label><input id="editMin" type="number" inputmode="numeric" min="0" step="1"></div></div>
 <label>Description / notes</label><textarea id="editDesc" rows="3"></textarea>
 <div class="row" style="margin-top:17px"><button class="primary" onclick="savePart()">Save to shared inventory</button><button onclick="tab(activeDivision)">Cancel</button></div></div></section>
-<section id="orderSection" class="hidden"><div class="section-head"><div><h1>Create an order</h1><p class="sub">Search and add stock from either brand — one order, one packing list.</p></div></div>
+<section id="orderSection" class="hidden"><div class="section-head"><div><h1 id="createOrderHeading">Create EiKO Order</h1><p class="sub" id="createOrderSubtitle">Create an EiKO-only order using EiKO stock and its standard packing list.</p></div></div>
 <div class="card"><h2 style="margin-top:0;font-size:18px">Ship-to information</h2>
 <div id="voltecOrderReferences" class="hidden"><h3 style="font-size:14px;margin:2px 0 9px">Voltec shipping references</h3>
 <div class="grid2"><div><label>Voltec Sales Order #</label><input id="orderVoltecSales" maxlength="100" placeholder="Voltec SO # (optional)"></div><div><label>Customer PO #</label><input id="orderCustomerPO" maxlength="100" placeholder="Customer purchase order # (optional)"></div></div>
 <p class="sub">These references appear on Voltec packing slips only.</p></div><div class="grid2"><div><label>Customer / company *</label><input id="orderCustomer" placeholder="Customer name"></div><div><label>Job / project</label><input id="orderJob" placeholder="Project name"></div><div><label>Attention / recipient</label><input id="orderAttention"></div><div><label>Street address</label><input id="orderStreet"></div><div><label>City</label><input id="orderCity"></div><div><label>State</label><input id="orderState" placeholder="AL" maxlength="30" autocapitalize="characters"></div><div><label>ZIP code</label><input id="orderZip" inputmode="numeric"></div></div><label>Notes</label><textarea id="orderNotes" rows="2"></textarea></div>
-<div class="card"><h2 style="margin-top:0;font-size:18px">Pull items</h2><input id="orderSearch" oninput="renderMatches()" placeholder="Search any EiKO or Voltec part"><div id="orderMatches" class="results"></div><h3 style="font-size:15px">Selected items</h3><p id="voltecShipmentHelp" class="sub hidden">Voltec shipping details: ordered, shipped, backordered, cases pulled, case pack, and weight. Only shipped quantities are deducted from inventory. Unknown case packs and weights can be left blank.</p><div id="cartRows"></div><div class="row" style="justify-content:space-between;margin-top:17px"><strong id="cartTotal">0 units</strong><button class="primary" id="placeOrderButton" onclick="placeOrder()">Create Order & Open Packing List</button></div></div></section>
+<div class="card"><h2 style="margin-top:0;font-size:18px">Pull items</h2><input id="orderSearch" oninput="renderMatches()" placeholder="Search EiKO parts only" aria-label="Search parts for selected order type"><div id="orderMatches" class="results"></div><h3 style="font-size:15px">Selected items</h3><p id="voltecShipmentHelp" class="sub hidden">Voltec shipping details: ordered, shipped, backordered, cases pulled, case pack, and weight. Only shipped quantities are deducted from inventory. Unknown case packs and weights can be left blank.</p><div id="cartRows"></div><div class="row" style="justify-content:space-between;margin-top:17px"><strong id="cartTotal">0 units</strong><button class="primary" id="placeOrderButton" onclick="placeOrder()">Create EiKO Order & Open Packing List</button></div></div></section>
 <section id="ordersSection" class="hidden"><div class="section-head"><div><h1>Order history</h1><p class="sub">Open an order's professional packing list, or cancel and restore quantities.</p></div><input id="orderFilter" oninput="renderOrders()" placeholder="Search order / job" style="max-width:280px"></div><div id="ordersList"></div></section>
 <section id="receivingSection" class="hidden">
 <div class="section-head"><div><h1>Packing List Receiving</h1><p class="sub">Scan a supplier packing list or enter the details manually. Review every line before adding stock.</p></div><span class="stock-pill">Staff PIN session · Shared inventory</span></div>
@@ -199,7 +200,7 @@ const dateText=x=>{try{return new Date(x).toLocaleDateString(undefined,{month:'s
 const dateTime=x=>{try{return new Date(x).toLocaleString()}catch{return ''}};
 const keyFor=(division,id)=>division+':'+id;
 let token=localStorage.getItem('csg_token')||sessionStorage.getItem('csg_token')||'';
-let staff='',selectedStaff='',newStaff=false,activeDivision='eiko',activeTab='eiko',editingDivision='eiko',stateVersion=0;
+let staff='',selectedStaff='',newStaff=false,activeDivision='eiko',activeTab='eiko',activeOrderDivision='eiko',editingDivision='eiko',stateVersion=0;
 let db={items:[],voltec:[],orders:[]},activities=[],cart={},liveBusy=false,selectedOrder=null;
 function inventoryOf(division){return division==='voltec'?(db.voltec||[]):(db.items||[])}
 function brandLabel(division){return division==='voltec'?'Voltec':'EiKO'}
@@ -271,19 +272,41 @@ async function signout(){
  showLogin();backStaff();
 }
 function tab(name){
+ // Keep old deep links working, but show distinct ordering workflows.
+ if(name==='order')name='order-eiko';
+ const targetOrderDivision=name==='order-eiko'?'eiko':name==='order-voltec'?'voltec':null;
+ if(targetOrderDivision&&targetOrderDivision!==activeOrderDivision){
+  if(Object.keys(cart).length&&!confirm('Switch to '+brandLabel(targetOrderDivision)+' ordering? Unsaved items on the other order will be cleared.'))return;
+  cart={};
+  if(typeof packingShipmentClear==='function')packingShipmentClear();
+  for(const id of ['orderCustomer','orderJob','orderAttention','orderStreet','orderCity','orderState','orderZip','orderNotes','orderSearch','orderVoltecSales','orderCustomerPO']){
+   const field=$(id);if(field)field.value='';
+  }
+  activeOrderDivision=targetOrderDivision;
+ }
  activeTab=name;
  for(const id of ['inventorySection','partSection','orderSection','ordersSection','receivingSection','bjSection','bjPrintSection','activitySection','packingSection'])$(id).classList.add('hidden');
  if(name==='eiko'||name==='voltec'){
   activeDivision=name;$('inventorySection').classList.remove('hidden');renderInventory();
  }else if(name==='part'){$('partSection').classList.remove('hidden')}
- else if(name==='order'){$('orderSection').classList.remove('hidden');renderMatches();renderCart()}
- else if(name==='orders'){$('ordersSection').classList.remove('hidden');renderOrders()}
+ else if(targetOrderDivision){
+  $('orderSection').classList.remove('hidden');
+  $('createOrderHeading').textContent='Create '+brandLabel(targetOrderDivision)+' Order';
+  $('createOrderSubtitle').textContent=targetOrderDivision==='voltec'
+   ?'Create a Voltec-only packing slip with shipped, backordered, cases, weights and sales order references.'
+   :'Create an EiKO-only order with the standard CSG packing list.';
+  $('orderSearch').placeholder='Search '+brandLabel(targetOrderDivision)+' parts only';
+  $('placeOrderButton').textContent='Create '+brandLabel(targetOrderDivision)+' Order & Open Packing List';
+  renderMatches();renderCart();
+ }else if(name==='orders'){$('ordersSection').classList.remove('hidden');renderOrders()}
  else if(name==='receiving'){$('receivingSection').classList.remove('hidden');renderReceiving()}
  else if(name==='bj'){$('bjSection').classList.remove('hidden');bjRender()}
  else if(name==='bjprint'){$('bjPrintSection').classList.remove('hidden')}
  else if(name==='activity'){$('activitySection').classList.remove('hidden');renderActivity()}
  else if(name==='packing'){$('packingSection').classList.remove('hidden')}
- for(const name of ['eiko','voltec','order','orders','receiving','bj','activity'])$('nav-'+name).classList.toggle('active',name===activeTab);
+ for(const navName of ['eiko','voltec','order-eiko','order-voltec','orders','receiving','bj','activity']){
+  $('nav-'+navName).classList.toggle('active',navName===activeTab);
+ }
  clearMsg();
  window.scrollTo({top:0,behavior:'instant'});
 }
@@ -291,7 +314,7 @@ function renderAll(){
  if(activeTab==='eiko'||activeTab==='voltec')renderInventory();
  if(activeTab==='orders')renderOrders();
  if(activeTab==='activity')renderActivity();
- if(activeTab==='order'){renderMatches();renderCart()}
+ if(activeTab==='order-eiko'||activeTab==='order-voltec'){renderMatches();renderCart()}
  if(activeTab==='packing'&&selectedOrder)renderPacking(selectedOrder);
  if(activeTab==='receiving')renderReceiving();
  if(activeTab==='bj')bjRender();
@@ -335,12 +358,13 @@ async function savePart(){
 }
 function renderMatches(){
  const q=$('orderSearch').value.trim().toLowerCase();
- if(!q){$('orderMatches').innerHTML='<p class="sub">Search by a part number or SKU to add it to the order.</p>';return}
- const found=[...inventoryOf('eiko').map(x=>({...x,division:'eiko'})),...inventoryOf('voltec').map(x=>({...x,division:'voltec'}))]
+ if(!q){$('orderMatches').innerHTML='<p class="sub">Search '+brandLabel(activeOrderDivision)+' part numbers or SKUs to add to this order.</p>';return}
+ const found=inventoryOf(activeOrderDivision).map(x=>({...x,division:activeOrderDivision}))
  .filter(x=>(x.part+' '+(x.code||'')).toLowerCase().includes(q)).slice(0,15);
  $('orderMatches').innerHTML=found.map(x=>'<div class="result"><div><strong>'+E(x.part)+'</strong> <span class="tag">'+brandLabel(x.division)+'</span><div class="muted">'+x.qty+' available'+(x.code?' · '+E(x.code):'')+'</div></div><button class="slim" onclick="addToCart(\''+x.division+'\','+x.id+')">+ Add</button></div>').join('')||'<p class="sub">No matching parts.</p>';
 }
 function addToCart(division,id){
+ if(division!==activeOrderDivision){alertMsg('Use Create '+brandLabel(division)+' Order for this item.',true);return}
  const key=keyFor(division,id),item=inventoryOf(division).find(x=>x.id===id);if(!item)return;
  if(item.qty<1){alertMsg('No stock available to ship for '+item.part,true);return}
  if((cart[key]||0)>=item.qty){alertMsg('Not enough stock available for '+item.part,true);return}
@@ -358,7 +382,7 @@ function setCartQty(key,value){
 }
 function removeCart(key){delete cart[key];delete packingShipmentDraft[key];renderCart()}
 function renderCart(){
- const hasVoltec=packingShipmentIsVoltecOrder(cart);
+ const hasVoltec=activeOrderDivision==='voltec';
  $('voltecOrderReferences').classList.toggle('hidden',!hasVoltec);
  $('voltecShipmentHelp').classList.toggle('hidden',!hasVoltec);
  let total=0;
@@ -374,10 +398,12 @@ function renderCart(){
 }
 async function placeOrder(){
  try{
-  if(!Object.keys(cart).length)throw Error('Add items to the order first.');
+  if(!Object.keys(cart).length)throw Error('Add '+brandLabel(activeOrderDivision)+' items to the order first.');
+  if(Object.keys(cart).some(key=>!key.startsWith(activeOrderDivision+':')))
+   throw Error('EiKO and Voltec parts must be ordered separately. Open the correct order form.');
   const customer=titleCase($('orderCustomer').value),job=$('orderJob').value.trim();
   if(!customer)throw Error('Customer / company is required.');
-  const hasVoltec=packingShipmentIsVoltecOrder(cart);
+  const hasVoltec=activeOrderDivision==='voltec';
   const lines=Object.entries(cart).map(([key,qty])=>{
    const [division,id]=key.split(':'),item=inventoryOf(division).find(x=>x.id===Number(id)),ordered=Number(qty);
    if(!item||!Number.isSafeInteger(ordered)||ordered<1)throw Error('Check the selected quantities.');
