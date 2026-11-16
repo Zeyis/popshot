@@ -202,5 +202,27 @@ async function voltecPackingBuildPDF(original,options={}){
  pdf.setSubject('Voltec sales order shipment packing slip');
  return pdf.save();
 }
+function voltecPackingHTML(order){
+ const o=voltecPackingNormalize(order),summ=voltecPackingSummary(o.lines);
+ const esc=t=>String(t??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+ const date=new Date(o.created),shownDate=isNaN(date.getTime())?'':date.toLocaleDateString('en-US');
+ const lines=o.lines.map(l=>'<tr><td><strong>'+esc(l.part)+'</strong><small>'+esc(l.description)+'</small></td>'+
+  '<td>'+esc(l.code||'-')+'</td><td>'+l.ordered+'</td><td>'+l.shipped+'</td><td>'+l.backordered+'</td>'+
+  '<td>'+(l.casesPulled==null?'—':l.casesPulled)+'</td><td>'+(l.weightLb==null?'—':(l.weightEstimated?'~':'')+l.weightLb.toFixed(2))+'</td></tr>').join('');
+ return '<div class="voltec-fallback">'+
+  '<div class="voltec-fallback-head"><div><strong>CAHABA SALES GROUP</strong><small>113 45th Place North · Birmingham, AL 35222</small></div><h2>PACKING SLIP</h2></div>'+
+  '<div class="voltec-fallback-meta"><div><small>CSG PO #</small><strong>'+esc(o.number)+'</strong></div>'+
+  '<div><small>VOLTEC SALES ORDER #</small><strong>'+esc(o.salesOrder||'-')+'</strong></div>'+
+  '<div><small>CUSTOMER PO #</small><strong>'+esc(o.customerPo||'-')+'</strong></div></div>'+
+  '<div class="voltec-fallback-address"><div><small>SHIP FROM</small><strong>Cahaba Sales Group</strong><p>113 45th Place North<br>Birmingham, AL 35222</p></div>'+
+  '<div><small>SHIP TO</small><strong>'+esc(o.recipient)+'</strong><p>'+[o.attention,o.street,[o.city,o.state,o.zip].filter(Boolean).join(' ')].filter(Boolean).map(esc).join('<br>')+'</p></div></div>'+
+  '<div class="voltec-fallback-caption">Order date: '+esc(shownDate)+(o.job?' · Job: '+esc(o.job):'')+'</div>'+
+  '<table class="voltec-fallback-table"><thead><tr><th>PART / DESCRIPTION</th><th>CODE</th><th>ORDERED</th><th>SHIPPED</th><th>B/O</th><th>CASES</th><th>WEIGHT LB</th></tr></thead><tbody>'+lines+'</tbody></table>'+
+  '<div class="voltec-fallback-total">TOTALS · '+summ.ordered+' ordered · '+summ.shipped+' shipped · '+summ.backordered+
+  ' backordered'+(summ.casesKnown?' · '+summ.knownCases+' known cases':'')+
+  (summ.weightsKnown?' · '+summ.knownLb.toFixed(2)+' lb (known lines)':'')+'</div>'+
+  (o.notes?'<p class="voltec-fallback-notes">'+esc(o.notes)+'</p>':'')+'</div>';
+}
+if(typeof window!=='undefined')window.voltecPackingHTML=voltecPackingHTML;
 if(typeof module!=='undefined'&&module.exports)
- module.exports={voltecPackingNormalize,voltecPackingSummary,voltecPackingBuildPDF};
+ module.exports={voltecPackingNormalize,voltecPackingSummary,voltecPackingBuildPDF,voltecPackingHTML};
