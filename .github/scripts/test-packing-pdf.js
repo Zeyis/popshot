@@ -5,7 +5,17 @@ globalThis.PDFLib=PDFLib;
 const {packingNormalizeOrder,packingBuildPDF,packingSafeText,packingWrap}=require('../../csg-inventory/packing-pdf.js');
 (async()=>{
  const html=fs.readFileSync('csg-inventory/index.html','utf8');
- assert(html.includes('Create Order & Open Packing List'),'Create-order CTA promises packing list');
+ assert(html.includes('Create EiKO Order & Open Packing List'),'EiKO CTA opens its packing list');
+ assert(html.includes('id="nav-order-eiko"'),'Dedicated EiKO ordering tab exists');
+ assert(html.includes('id="nav-order-voltec"'),'Dedicated Voltec ordering tab exists');
+ assert(!html.includes('id="nav-order"'),'Old combined Create Order tab removed');
+ assert(html.includes("tab('order-eiko')"),'EiKO tab navigates to EiKO-only order screen');
+ assert(html.includes("tab('order-voltec')"),'Voltec tab navigates to Voltec-only order screen');
+ assert(html.includes('inventoryOf(activeOrderDivision).map('),'Part suggestions search only the chosen brand');
+ assert(html.includes('if(division!==activeOrderDivision)'),'Cannot add the wrong brand to an order');
+ assert(html.includes("key.startsWith(activeOrderDivision+':')"),'Order submission rejects mixed brands');
+ assert(html.includes("activeOrderDivision==='voltec'"),'Voltec-only shipping fields are tied to order type');
+ assert(html.includes("targetOrderDivision!==activeOrderDivision"),'Switching order types resets their unsaved state');
  assert(html.includes('openPacking(created.id)'),'Created order must navigate straight to packing list');
  assert(html.includes("window.packingPreviewPDF?.(o)"),'Open packing list automatically renders PDF');
  assert(html.includes('id="packingPDFPreview"'),'PDF preview must be mounted');
