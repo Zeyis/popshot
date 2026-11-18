@@ -42,6 +42,18 @@ assert.equal(summary.goodsWeightLb,147,'Repacking boxes must not change goods we
 assert.equal(summary.goodsWeightLb,147);
 assert.equal(summary.palletWeightLb,70);
 assert.equal(summary.totalWeightLb,217);
+assert.equal(d.manualTotalWeightLb,'');
+d.manualTotalWeightLb='200';
+summary=packingEditComputed(d);
+assert.equal(summary.totalWeightLb,200);
+assert.equal(summary.palletWeightLb,70);
+assert.equal(packingEditPayload(d).manualTotalWeightLb,200);
+d.manualTotalWeightLb='';
+assert.equal(packingEditComputed(d).totalWeightLb,217);
+assert.equal(packingEditPayload(d).manualTotalWeightLb,null);
+d.manualTotalWeightLb='xyz';
+assert.throws(()=>packingEditPayload(d),/manual total/);
+d.manualTotalWeightLb='';
 let p=packingEditPayload(d);
 assert.equal(p.lines[0].casesPulled,3);
 assert.equal(p.lines[1].perCaseWeightLb,18);
@@ -73,6 +85,7 @@ assert.equal(eikoPayload.lines[0].shipped,6,'EiKO shipped equals edited ordered 
 assert.equal(eikoPayload.lines[0].casePack,null);
 assert.equal(eikoPayload.shippingMethod,'cartons');
 assert.equal(eikoPayload.shippingCartons,null);
+assert.equal(eikoPayload.manualTotalWeightLb,null);
 // The button increments pallet count and method, without changing shipment goods weight.
 const method={value:'cartons'},count={value:''};
 const realDoc=global.document;
