@@ -94,7 +94,8 @@ function packingEditRender(){
    '<option value="pallets"'+(d.shippingMethod==='pallets'?' selected':'')+'>Pallets</option></select></label>'+
    '<label id="packingEditPalletLabel"'+(d.shippingMethod==='cartons'?' class="hidden"':'')+'>Number of pallets'+
    '<input type="number" min="1" max="1000" step="1" inputmode="numeric" id="packingEditPalletCount" value="'+
-   packingEditEscape(d.palletCount)+'" oninput="packingEditSet(\'palletCount\',this.value)"></label></div>':'')+
+   packingEditEscape(d.palletCount)+'" oninput="packingEditSet(\'palletCount\',this.value)"></label></div>'+
+   '<button type="button" class="slim" style="margin-top:10px" onclick="packingEditAddPallet()">+ Add Pallet Weight (35 lb)</button>':'')+
   '<h3>Original order lines</h3><p class="sub">Part numbers stay fixed. Save a new order to add or remove parts.</p>'+
   lines+packingEditTextField('Notes','notes',{optional:true,multiline:true})+
   '<div id="packingEditTotals" class="packing-edit-summary"></div>'+
@@ -111,6 +112,24 @@ function packingEditSummary(){
   (packingEditDraft.isVoltec?' · '+s.pallets+' pallets (+'+s.palletWeightLb+' lb)':'')+
   ' · '+(s.allKnown?'Total weight: ':'Known weight: ')+s.knownWeightLb.toFixed(2)+' lb'+
   (!s.allKnown?' (some weights unknown)':'');
+}
+function packingEditAddPallet(){
+ if(!packingEditDraft||!packingEditDraft.isVoltec)return;
+ const raw=packingEditDraft.palletCount;
+ const count=raw===''?0:Number(raw);
+ if(!Number.isSafeInteger(count)||count<0||count>=1000){
+  if(typeof alertMsg==='function')alertMsg('Enter a valid pallet count under 1000.',true);
+  return;
+ }
+ packingEditDraft.shippingMethod='pallets';
+ packingEditDraft.palletCount=String(count+1);
+ const select=document.getElementById('packingEditShippingMethod');
+ const field=document.getElementById('packingEditPalletCount');
+ const label=document.getElementById('packingEditPalletLabel');
+ if(select)select.value='pallets';
+ if(field)field.value=packingEditDraft.palletCount;
+ if(label)label.classList.remove('hidden');
+ packingEditSummary();
 }
 function packingEditSet(key,value){
  if(!packingEditDraft||!packingEditFields.includes(key))return;
@@ -199,7 +218,7 @@ async function packingEditSave(){
 }
 if(typeof window!=='undefined'){
  Object.assign(window,{packingEditOpen,packingEditClose,packingEditSet,
- packingEditSetLine,packingEditSave});
+ packingEditSetLine,packingEditSave,packingEditAddPallet});
 }
 if(typeof module!=='undefined'&&module.exports)
- module.exports={packingEditInitial,packingEditComputed,packingEditPayload};
+ module.exports={packingEditInitial,packingEditComputed,packingEditPayload,packingEditAddPallet};
