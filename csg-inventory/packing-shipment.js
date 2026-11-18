@@ -134,6 +134,39 @@ function packingShipmentLine(key,item,ordered){
   weightSource:weightLb!==null?(v.weightEstimated?v.source:'Manual'):v.casePackTouched?'Manual':v.source,
   weightSourceUrl:weightLb!==null&&v.weightEstimated?v.sourceUrl:''};
 }
+const PACKING_PALLET_TARE_LB=35;
+function packingShippingCalculation(method,palletCount,itemsWeightLb){
+ const mode=method==='pallets'?'pallets':'cartons';
+ const count=mode==='pallets'?Number(palletCount):0;
+ if(!Number.isSafeInteger(count)||count<0||count>1000)
+  throw Error('Enter a valid whole number of pallets (1–1000).');
+ const base=itemsWeightLb===null?null:Number(itemsWeightLb);
+ const palletWeightLb=count*PACKING_PALLET_TARE_LB;
+ return {shippingMethod:mode,palletCount:count,palletWeightLb,
+  itemsWeightLb:base,grandWeightLb:base===null?null:Math.round((base+palletWeightLb)*100)/100};
+}
+function packingShippingModeChanged(){
+ const mode=document.getElementById('orderShippingMethod')?.value||'cartons';
+ const palletFields=document.getElementById('orderPalletFields');
+ if(palletFields)palletFields.classList.toggle('hidden',mode!=='pallets');
+ packingShipmentSummary();
+}
+function packingShippingDetails(){
+ const mode=document.getElementById('orderShippingMethod')?.value||'cartons';
+ const raw=document.getElementById('orderPalletCount')?.value||'';
+ if(mode==='pallets'&&(!/^\d+$/.test(raw)||Number(raw)<1))
+  throw Error('Enter how many pallets you are shipping.');
+ const calc=packingShippingCalculation(mode,mode==='pallets'?Number(raw):0,null);
+ if(mode==='pallets'&&calc.palletCount<1)throw Error('Enter at least one pallet.');
+ return {shippingMethod:calc.shippingMethod,palletCount:calc.palletCount};
+}
+function packingShippingReset(){
+ const mode=document.getElementById('orderShippingMethod');
+ const qty=document.getElementById('orderPalletCount');
+ if(mode)mode.value='cartons';
+ if(qty)qty.value='';
+ packingShippingModeChanged();
+}
 function packingShipmentSummary(){
  if(typeof cart==='undefined')return;
  let ordered=0,shipped=0,backordered=0,cases=0,weight=0,hasWeight=false;
@@ -145,10 +178,18 @@ function packingShipmentSummary(){
   if(lineWeight!==null){weight+=lineWeight;hasWeight=true}
  }
  const target=document.getElementById('cartTotal');
- if(target)target.textContent=ordered+' ordered · '+shipped+' shipped · '+backordered+' backordered'+(cases?' · '+cases+' cases':'')+(hasWeight?' · '+weight.toFixed(2)+' lb total':'');
+ const mode=document.getElementById('orderShippingMethod')?.value||'cartons';
+ const pallets=document.getElementById('orderPalletCount')?.value||'';
+ const palletCount=mode==='pallets'&&/^\d+$/.test(pallets)?Number(pallets):0;
+ const palletLb=mode==='pallets'&&Number.isSafeInteger(palletCount)&&palletCount>0?palletCount*PACKING_PALLET_TARE_LB:0;
+ const base=ordered+' ordered · '+shipped+' shipped · '+backordered+' backordered'+(cases?' · '+cases+' cases':'');
+ if(target)target.textContent=base+(hasWeight?' · '+weight.toFixed(2)+' lb item weight':'')+
+  (mode==='pallets'
+   ?' · '+(palletCount>0?palletCount+' pallet(s) × 35 lb = '+palletLb+' lb added':'Enter pallet count'):'')+
+  (hasWeight?' · '+(weight+palletLb).toFixed(2)+' lb total':palletLb?' · '+palletLb+' lb pallet weight (item weight unknown)':'');
 }
 function packingShipmentClear(){
  for(const k of Object.keys(packingShipmentDraft))delete packingShipmentDraft[k];
 }
 if(typeof module!=='undefined'&&module.exports)
- module.exports={packingShipmentDefault,packingShipmentGet,packingShipmentLine,packingShipmentSpec,packingShipmentOrderedChanged,packingShipmentClear,packingShipmentSet,packingShipmentIsVoltecOrder,packingShipmentWeightTotal,packingShipmentDraft};
+ module.exports={packingShipmentDefault,packingShipmentGet,packingShipmentLine,packingShipmentSpec,packingShipmentOrderedChanged,packingShipmentClear,packingShipmentSet,packingShipmentIsVoltecOrder,packingShipmentWeightTotal,packingShipmentDraft,PACKING_PALLET_TARE_LB,packingShippingCalculation,packingShippingDetails};
