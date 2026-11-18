@@ -179,6 +179,13 @@ function packingShippingCartonCount(casesPulled,override){
   return {cartons:null,manual:false};
  return {cartons:casesPulled.reduce((sum,n)=>sum+Number(n),0),manual:false};
 }
+function packingManualTotalWeight(raw){
+ if(raw===null||raw===undefined||String(raw).trim()==='')return null;
+ const n=Number(raw);
+ if(!Number.isFinite(n)||n<0||n>1000000||Math.round(n*100)!==n*100)
+  throw Error('Enter a valid manual total shipping weight (lb), up to 2 decimal places.');
+ return n;
+}
 function packingShippingDetails(){
  const mode=document.getElementById('orderShippingMethod')?.value||'cartons';
  const raw=document.getElementById('orderPalletCount')?.value||'';
@@ -189,8 +196,9 @@ function packingShippingDetails(){
  const cartons=document.getElementById('orderShippingCartons')?.value??'';
  const counts=Object.keys(cart||{}).filter(k=>k.startsWith('voltec:')).map(k=>packingShipmentDraft[k]?.casesPulled??null);
  const cartonResult=packingShippingCartonCount(counts,cartons);
+ const manualTotalWeightLb=packingManualTotalWeight(document.getElementById('orderManualTotalWeight')?.value??'');
  return {shippingMethod:calc.shippingMethod,palletCount:calc.palletCount,
-  shippingCartons:cartonResult.manual?cartonResult.cartons:null};
+  shippingCartons:cartonResult.manual?cartonResult.cartons:null,manualTotalWeightLb};
 }
 function packingShippingReset(){
  const mode=document.getElementById('orderShippingMethod');
@@ -199,6 +207,8 @@ function packingShippingReset(){
  if(qty)qty.value='';
  const cartonField=document.getElementById('orderShippingCartons');
  if(cartonField)cartonField.value='';
+ const manualField=document.getElementById('orderManualTotalWeight');
+ if(manualField)manualField.value='';
  packingShippingModeChanged();
 }
 function packingShipmentSummary(){
@@ -219,15 +229,20 @@ function packingShipmentSummary(){
  const knownCases=Object.keys(cart).filter(k=>k.startsWith('voltec:')).map(k=>packingShipmentDraft[k]?.casesPulled??null);
  let boxes={cartons:null,manual:false};
  try{boxes=packingShippingCartonCount(knownCases,document.getElementById('orderShippingCartons')?.value??'')}catch{}
+ const manualInput=document.getElementById('orderManualTotalWeight')?.value??'';
+ const manual=manualInput===''?null:Number(manualInput);
+ const manualValid=manual!==null&&Number.isFinite(manual)&&manual>=0;
  const base=ordered+' ordered · '+shipped+' shipped · '+backordered+' backordered'+(cases?' · '+cases+' cases pulled':'')+
    (boxes.cartons!==null?' · '+boxes.cartons+' shipping boxes'+(boxes.manual?' (adjusted)':' (from cases)'):'');
- if(target)target.textContent=base+(hasWeight?' · '+weight.toFixed(2)+' lb item weight':'')+
-  (mode==='pallets'
-   ?' · '+(palletCount>0?palletCount+' pallet(s) × 35 lb = '+palletLb+' lb added':'Enter pallet count'):'')+
-  (hasWeight?' · '+(weight+palletLb).toFixed(2)+' lb total':palletLb?' · '+palletLb+' lb pallet weight (item weight unknown)':'');
+ if(target)target.textContent=base+
+  (manualValid
+   ?' · Manual FINAL shipping weight: '+manual.toFixed(2)+' lb (includes pallets; no weight added)'
+   :(hasWeight?' · '+weight.toFixed(2)+' lb item weight':'')+
+     (mode==='pallets'?' · '+(palletCount>0?palletCount+' pallet(s) × 35 lb = '+palletLb+' lb added':'Enter pallet count'):'')+
+     (hasWeight?' · '+(weight+palletLb).toFixed(2)+' lb calculated total':palletLb?' · '+palletLb+' lb pallet weight (item weight unknown)':''));
 }
 function packingShipmentClear(){
  for(const k of Object.keys(packingShipmentDraft))delete packingShipmentDraft[k];
 }
 if(typeof module!=='undefined'&&module.exports)
- module.exports={packingShipmentDefault,packingShipmentGet,packingShipmentLine,packingShipmentSpec,packingShipmentOrderedChanged,packingShipmentClear,packingShipmentSet,packingShipmentIsVoltecOrder,packingShipmentWeightTotal,packingShipmentDraft,PACKING_PALLET_TARE_LB,packingShippingCalculation,packingShippingDetails,packingAddPalletWeight,packingShippingCartonCount};
+ module.exports={packingShipmentDefault,packingShipmentGet,packingShipmentLine,packingShipmentSpec,packingShipmentOrderedChanged,packingShipmentClear,packingShipmentSet,packingShipmentIsVoltecOrder,packingShipmentWeightTotal,packingShipmentDraft,PACKING_PALLET_TARE_LB,packingShippingCalculation,packingShippingDetails,packingAddPalletWeight,packingShippingCartonCount,packingManualTotalWeight};
