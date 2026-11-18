@@ -137,7 +137,7 @@ async function voltecPackingBuildPDF(original,options={}){
    put('Birmingham, AL 35222',left,517,8.7,false,C.dark);
    put('SHIP TO',316,565,8.3,true,C.mid);
    put(saved.recipient||'Destination not supplied',316,549,10.5,true,C.black,247);
-   const address=[saved.attention?('Attn: '+saved.attention):'',saved.street,
+   const address=[saved.street,
      [saved.city,saved.state,saved.zip].filter(Boolean).join(' ')].filter(Boolean);
    address.slice(0,3).forEach((v,i)=>put(v,316,532-i*14,8.7,false,C.dark,248));
    rule(485);
@@ -247,7 +247,7 @@ function voltecPackingHTML(order){
   '<div><small>VOLTEC SALES ORDER #</small><strong>'+esc(o.salesOrder||'-')+'</strong></div>'+
   '<div><small>CUSTOMER PO #</small><strong>'+esc(o.customerPo||'-')+'</strong></div></div>'+
   '<div class="voltec-fallback-address"><div><small>SHIP FROM</small><strong>Cahaba Sales Group</strong><p>113 45th Place North<br>Birmingham, AL 35222</p></div>'+
-  '<div><small>SHIP TO</small><strong>'+esc(o.recipient)+'</strong><p>'+[o.attention,o.street,[o.city,o.state,o.zip].filter(Boolean).join(' ')].filter(Boolean).map(esc).join('<br>')+'</p></div></div>'+
+  '<div><small>SHIP TO</small><strong>'+esc(o.recipient)+'</strong><p>'+[o.street,[o.city,o.state,o.zip].filter(Boolean).join(' ')].filter(Boolean).map(esc).join('<br>')+'</p></div></div>'+
   '<div class="voltec-fallback-caption">Order date: '+esc(shownDate)+(o.job?' · Job: '+esc(o.job):'')+'</div>'+
   '<table class="voltec-fallback-table"><thead><tr><th>PART / DESCRIPTION</th><th>CODE</th><th>ORDERED</th><th>SHIPPED</th><th>B/O</th><th>CASES</th><th>TOTAL LB</th></tr></thead><tbody>'+lines+'</tbody></table>'+
   '<div class="voltec-fallback-total">TOTALS · '+summ.ordered+' ordered · '+summ.shipped+' shipped · '+summ.backordered+
