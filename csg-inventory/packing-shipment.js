@@ -21,7 +21,7 @@ function packingShipmentDefault(item,division,ordered){
  const shipped=Math.min(Number(item.qty)||0,Number(ordered)||0);
  const casePack=spec?.casePack||'';
  const casesPulled=casePack&&shipped>0&&shipped%casePack===0?shipped/casePack:'';
- const weightLb=spec?.caseWeightLb&&casesPulled!==''?Number((casesPulled*spec.caseWeightLb).toFixed(2)):'';
+ const weightLb=spec?.caseWeightLb||''; // Editable weight PER CASE, not line total.
  return {ordered:Number(ordered),shipped,casePack,casesPulled,weightLb,
   caseTouched:false,shippedTouched:false,weightTouched:false,casePackTouched:false,
   weightEstimated:weightLb!==''&&!!spec?.caseWeightLb,
@@ -38,8 +38,8 @@ function packingShipmentUpdateAuto(v){
   v.casesPulled=v.casePack&&v.shipped>0&&v.shipped%v.casePack===0?v.shipped/v.casePack:'';
  }
  if(!v.weightTouched){
-  v.weightLb=v.caseWeightLb&&v.casesPulled!==''&&v.casePack===v.suggestedCasePack
-   ?Number((v.casesPulled*v.caseWeightLb).toFixed(2)):'';
+  v.weightLb=v.caseWeightLb&&v.casePack===v.suggestedCasePack
+   ?v.caseWeightLb:'';
   v.weightEstimated=v.weightLb!==''&&!!v.caseWeightLb;
  }
 }
@@ -64,7 +64,7 @@ function packingShipmentSet(key,field,raw){
  }else if(field==='weightLb'){
   v.weightLb=n;v.weightTouched=true;v.weightEstimated=false;
  }else return;
- if(field==='shipped'||field==='casePack')packingShipmentUpdateAuto(v);
+ if(field==='shipped'||field==='casePack'||field==='casesPulled')packingShipmentUpdateAuto(v);
  const suffix=key.replace(/[^A-Za-z0-9]/g,'_');
  const back=document.getElementById('shipBack_'+suffix);
  if(back)back.textContent=Number.isSafeInteger(Number(v.shipped))?Math.max(0,v.ordered-Number(v.shipped)).toLocaleString():'—';
@@ -73,9 +73,19 @@ function packingShipmentSet(key,field,raw){
   if(input&&name!==field)input.value=v[name]===''?'':String(v[name]);
  }
  const note=document.getElementById('shipWeightNote_'+suffix);
- if(note)note.textContent=v.weightEstimated?'Estimate from manufacturer full-case weight; confirm actual shipment weight.':
-  v.weightLb!==''?'Weight entered manually.':'Weight unknown — leave blank or weigh cartons.';
+ if(note){
+  const total=packingShipmentWeightTotal(v);
+  note.textContent=total===null
+   ?'Enter cases pulled and weight per case to calculate total weight.'
+   :(v.weightEstimated?'Estimated':'Calculated')+' line weight: '+total.toFixed(2)+' lb ('+v.casesPulled+' × '+v.weightLb+' lb/case).';
+ }
  if(typeof packingShipmentSummary==='function')packingShipmentSummary();
+}
+function packingShipmentWeightTotal(v){
+ if(v?.casesPulled===''||v?.casesPulled==null||v?.weightLb===''||v?.weightLb==null)return null;
+ const n=Number(v.casesPulled),w=Number(v.weightLb);
+ if(!Number.isSafeInteger(n)||n<0||!Number.isFinite(w)||w<0)return null;
+ return Math.round(n*w*100)/100;
 }
 function packingShipmentIsVoltecOrder(cartEntries){
  return Object.keys(cartEntries||{}).some(key=>key.startsWith('voltec:'));
@@ -94,11 +104,13 @@ function packingShipmentMarkup(key,item,ordered){
   '<label>Backordered <span class="ship-readonly" id="shipBack_'+suffix+'">'+Math.max(0,v.ordered-Number(v.shipped||0))+'</span></label>'+
   '<label>Cases pulled '+input('casesPulled')+'</label>'+
   '<label>Units / case '+input('casePack')+'</label>'+
-  '<label>Line weight (lb) '+input('weightLb',{decimal:true})+'</label>'+
+  '<label>Weight / case (lb) '+input('weightLb',{decimal:true})+'</label>'+
   '</div><div class="packing-shipment-help"><span>'+
   (spec?'Case pack sourced from <a target="_blank" rel="noopener noreferrer" href="'+esc(spec.url)+'">'+esc(spec.source)+'</a>. ':'Case pack not verified; enter if known. ')+
   '</span><span id="shipWeightNote_'+suffix+'">'+
-  (v.weightEstimated?"Weight estimated from manufacturer's case weight; confirm.":'Unknown weights stay blank until entered.')+
+  (packingShipmentWeightTotal(v)===null
+    ?'Enter cases pulled and weight per case to calculate total.'
+    :(v.weightEstimated?'Estimated':'Calculated')+' line weight: '+packingShipmentWeightTotal(v).toFixed(2)+' lb ('+v.casesPulled+' × '+v.weightLb+' lb/case).')+
   '</span></div></article>';
 }
 function packingShipmentLine(key,item,ordered){
@@ -108,12 +120,17 @@ function packingShipmentLine(key,item,ordered){
   throw Error('Check shipped quantity for '+item.part+'. Shipped must not exceed ordered or available inventory.');
  const casesPulled=v.casesPulled===''?null:Number(v.casesPulled);
  const casePack=v.casePack===''?null:Number(v.casePack);
- const weightLb=v.weightLb===''?null:Number(v.weightLb);
+ const perCaseWeightLb=v.weightLb===''?null:Number(v.weightLb);
+ const weightLb=packingShipmentWeightTotal(v);
  if(casesPulled!==null&&(!Number.isSafeInteger(casesPulled)||casesPulled<0))throw Error('Cases pulled must be a whole number for '+item.part+'.');
  if(casePack!==null&&(!Number.isSafeInteger(casePack)||casePack<1))throw Error('Units per case must be a positive whole number for '+item.part+'.');
- if(weightLb!==null&&(!Number.isFinite(weightLb)||weightLb<0))throw Error('Check line weight for '+item.part+'.');
+ if(perCaseWeightLb!==null&&(!Number.isFinite(perCaseWeightLb)||perCaseWeightLb<0))
+  throw Error('Check weight per case for '+item.part+'.');
+ if(perCaseWeightLb!==null&&casesPulled===null)
+  throw Error('Enter cases pulled to calculate the weight for '+item.part+'.');
  const [division,id]=key.split(':');
- return {division,id:Number(id),qty:Number(ordered),shipped,casesPulled,casePack,weightLb,
+ return {division,id:Number(id),qty:Number(ordered),shipped,casesPulled,casePack,
+  perCaseWeightLb,weightLb,
   weightEstimated:weightLb!==null&&v.weightEstimated,
   weightSource:weightLb!==null?(v.weightEstimated?v.source:'Manual'):v.casePackTouched?'Manual':v.source,
   weightSourceUrl:weightLb!==null&&v.weightEstimated?v.sourceUrl:''};
@@ -125,13 +142,14 @@ function packingShipmentSummary(){
   const v=packingShipmentDraft[key],q=Number(qty)||0,s=Number(v?.shipped??q);
   ordered+=q;shipped+=s;backordered+=Math.max(0,q-s);
   if(v?.casesPulled!=='')cases+=Number(v?.casesPulled)||0;
-  if(v?.weightLb!==''&&v?.weightLb!=null){weight+=Number(v.weightLb)||0;hasWeight=true}
+  const lineWeight=packingShipmentWeightTotal(v);
+  if(lineWeight!==null){weight+=lineWeight;hasWeight=true}
  }
  const target=document.getElementById('cartTotal');
- if(target)target.textContent=ordered+' ordered · '+shipped+' shipped · '+backordered+' backordered'+(cases?' · '+cases+' cases':'')+(hasWeight?' · '+weight.toFixed(2)+' lb est/entered':'');
+ if(target)target.textContent=ordered+' ordered · '+shipped+' shipped · '+backordered+' backordered'+(cases?' · '+cases+' cases':'')+(hasWeight?' · '+weight.toFixed(2)+' lb total':'');
 }
 function packingShipmentClear(){
  for(const k of Object.keys(packingShipmentDraft))delete packingShipmentDraft[k];
 }
 if(typeof module!=='undefined'&&module.exports)
- module.exports={packingShipmentDefault,packingShipmentGet,packingShipmentLine,packingShipmentSpec,packingShipmentOrderedChanged,packingShipmentClear,packingShipmentSet,packingShipmentIsVoltecOrder};
+ module.exports={packingShipmentDefault,packingShipmentGet,packingShipmentLine,packingShipmentSpec,packingShipmentOrderedChanged,packingShipmentClear,packingShipmentSet,packingShipmentIsVoltecOrder,packingShipmentWeightTotal,packingShipmentDraft};
