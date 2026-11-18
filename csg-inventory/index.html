@@ -121,6 +121,10 @@
    <input id="orderPalletCount" type="number" min="1" max="1000" step="1" inputmode="numeric" placeholder="Enter pallet count" oninput="packingShipmentSummary()">
   </div>
  </div>
+ <div class="row" style="margin-top:10px;gap:9px;flex-wrap:wrap">
+  <button type="button" id="addPalletWeightButton" class="slim" onclick="packingAddPalletWeight()">+ Add Pallet Weight (35 lb)</button>
+  <span class="sub" style="margin:0">Each tap adds one pallet and 35 lb to the total.</span>
+ </div>
  <p class="sub" style="margin:8px 0 0">Pallet shipping adds <strong>35 lb for each pallet</strong> to the item weight total. Carton shipping adds no pallet weight.</p>
 </div></div><div class="grid2"><div><label>Customer / company *</label><input id="orderCustomer" placeholder="Customer name"></div><div><label>Job / project</label><input id="orderJob" placeholder="Project name"></div><div><label>Attention / recipient</label><input id="orderAttention"></div><div><label>Street address</label><input id="orderStreet"></div><div><label>City</label><input id="orderCity"></div><div><label>State</label><input id="orderState" placeholder="AL" maxlength="30" autocapitalize="characters"></div><div><label>ZIP code</label><input id="orderZip" inputmode="numeric"></div></div><label>Notes</label><textarea id="orderNotes" rows="2"></textarea></div>
 <div class="card"><h2 style="margin-top:0;font-size:18px">Pull items</h2><input id="orderSearch" oninput="renderMatches()" placeholder="Search EiKO parts only" aria-label="Search parts for selected order type"><div id="orderMatches" class="results"></div><h3 style="font-size:15px">Selected items</h3><p id="voltecShipmentHelp" class="sub hidden">Voltec shipping details: ordered, shipped, backordered, cases pulled, case pack, and weight. Only shipped quantities are deducted from inventory. Unknown case packs and weights can be left blank.</p><div id="cartRows"></div><div class="row" style="justify-content:space-between;margin-top:17px"><strong id="cartTotal">0 units</strong><button class="primary" id="placeOrderButton" onclick="placeOrder()">Create EiKO Order & Open Packing List</button></div></div></section>
