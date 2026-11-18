@@ -3,7 +3,7 @@ const fs=require('node:fs');
 const PDFLib=require('pdf-lib');
 globalThis.PDFLib=PDFLib;
 const {packingShipmentDefault,packingShipmentSpec,packingShipmentLine,packingShipmentWeightTotal,
- packingShipmentGet,packingShipmentIsVoltecOrder,PACKING_PALLET_TARE_LB,packingShippingCalculation,packingAddPalletWeight}=require('../../csg-inventory/packing-shipment.js');
+ packingShipmentGet,packingShipmentIsVoltecOrder,PACKING_PALLET_TARE_LB,packingShippingCalculation,packingAddPalletWeight,packingShippingCartonCount}=require('../../csg-inventory/packing-shipment.js');
 const {voltecPackingNormalize,voltecPackingSummary,voltecPackingBuildPDF,
  voltecPackingHTML,voltecPackingShippingTotals}=require('../../csg-inventory/voltec-packing.js');
 (async()=>{
@@ -15,6 +15,13 @@ const {voltecPackingNormalize,voltecPackingSummary,voltecPackingBuildPDF,
  assert(edgeUI.includes('id="orderCustomerPO"'));
  assert(edgeUI.includes('id="orderShippingMethod"'));
  assert(edgeUI.includes('id="orderPalletCount"'));
+ assert(edgeUI.includes('id="orderShippingCartons"'));
+ assert.equal(packingShippingCartonCount([3,4],'').cartons,7);
+ assert.equal(packingShippingCartonCount([3,4],'5').cartons,5);
+ assert.equal(packingShippingCartonCount([3,4],'5').manual,true);
+ assert.equal(packingShippingCartonCount([3,null],'').cartons,null);
+ assert.throws(()=>packingShippingCartonCount([3,4],'5.2'),/whole number/);
+ assert.throws(()=>packingShippingCartonCount([3,4],'-2'),/whole number/);
  assert(edgeUI.includes('id="addPalletWeightButton"'));
  assert(edgeUI.includes('onclick="packingAddPalletWeight()"'));
  const modeField={value:'cartons'},countField={value:''};
@@ -105,6 +112,15 @@ const {voltecPackingNormalize,voltecPackingSummary,voltecPackingBuildPDF,
  assert.equal(palletTotals.palletWeightLb,70);
  assert.equal(palletTotals.itemsWeightLb,147);
  assert.equal(palletTotals.grandTotalLb,217);
+ const repacked=voltecPackingNormalize({...raw,shippingMethod:'cartons',shippingCartons:5,lines:twoCases});
+ const repackedSummary=voltecPackingSummary(repacked.lines);
+ const repackedTotals=voltecPackingShippingTotals(repacked,repackedSummary);
+ assert.equal(repackedSummary.knownCases,7);
+ assert.equal(repackedTotals.shippingCartons,5);
+ assert.equal(repackedTotals.grandTotalLb,147);
+ assert.equal(repackedTotals.cartonsManuallySet,true);
+ const repackedPreview=voltecPackingHTML({...raw,shippingMethod:'cartons',shippingCartons:5,lines:twoCases});
+ assert(repackedPreview.includes('Actual boxes: 5'));
  assert.equal(voltecPackingShippingTotals({...palletOrder,shippingMethod:'cartons',palletCount:0},
   voltecPackingSummary(palletOrder.lines)).grandTotalLb,147);
  assert.equal(voltecPackingShippingTotals(voltecPackingNormalize({...raw,shippingMethod:'pallets',palletCount:2}),
