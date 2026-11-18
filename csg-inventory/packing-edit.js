@@ -2,6 +2,9 @@
    Changing shipped quantities updates inventory through authenticated backend. */
 'use strict';
 let packingEditDraft=null;
+const packingEditCartonCounter=typeof packingShippingCartonCount==='function'
+ ?packingShippingCartonCount
+ :(typeof module!=='undefined'&&module.exports?require('./packing-shipment.js').packingShippingCartonCount:null);
 const packingEditFields=['recipient','job','attention','street','city','state','zip','notes','voltecSalesOrder','customerPo','shippingMethod','palletCount','shippingCartons'];
 function packingEditEscape(v){
  return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -45,7 +48,7 @@ function packingEditComputed(draft){
  const pallets=draft.shippingMethod==='pallets'?(Number(draft.palletCount)||0):0;
  const tare=Number.isSafeInteger(pallets)&&pallets>=0?pallets*35:0;
  const allKnown=known===draft.lines.length;
- const boxes=packingShippingCartonCount(draft.lines.map(l=>l.casesPulled),draft.shippingCartons);
+ const boxes=packingEditCartonCounter(draft.lines.map(l=>l.casesPulled),draft.shippingCartons);
  return {ordered,shipped,backordered:ordered-shipped,cases,
   shippingCartons:boxes.cartons,cartonsManuallySet:boxes.manual,goodsWeightLb,
   pallets,palletWeightLb:tare,knownWeightLb:goodsWeightLb+tare,allKnown,
@@ -172,7 +175,7 @@ function packingEditPayload(d){
    perCaseWeightLb:d.isVoltec?nullable(l.perCaseWeightLb,'weight per case',false):null,
    weightEstimated:l.weightEstimated,weightSource:l.weightSource,weightSourceUrl:l.weightSourceUrl};
  });
- const cartons=d.isVoltec?packingShippingCartonCount(d.lines.map(l=>l.casesPulled),d.shippingCartons):
+ const cartons=d.isVoltec?packingEditCartonCounter(d.lines.map(l=>l.casesPulled),d.shippingCartons):
   {cartons:null,manual:false};
  const shippingMethod=d.isVoltec&&d.shippingMethod==='pallets'?'pallets':'cartons';
  const palletCount=shippingMethod==='pallets'?Number(d.palletCount):0;
