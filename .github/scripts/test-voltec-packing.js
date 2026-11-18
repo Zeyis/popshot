@@ -3,7 +3,7 @@ const fs=require('node:fs');
 const PDFLib=require('pdf-lib');
 globalThis.PDFLib=PDFLib;
 const {packingShipmentDefault,packingShipmentSpec,packingShipmentLine,packingShipmentWeightTotal,
- packingShipmentGet,packingShipmentIsVoltecOrder,PACKING_PALLET_TARE_LB,packingShippingCalculation}=require('../../csg-inventory/packing-shipment.js');
+ packingShipmentGet,packingShipmentIsVoltecOrder,PACKING_PALLET_TARE_LB,packingShippingCalculation,packingAddPalletWeight}=require('../../csg-inventory/packing-shipment.js');
 const {voltecPackingNormalize,voltecPackingSummary,voltecPackingBuildPDF,
  voltecPackingHTML,voltecPackingShippingTotals}=require('../../csg-inventory/voltec-packing.js');
 (async()=>{
@@ -15,6 +15,19 @@ const {voltecPackingNormalize,voltecPackingSummary,voltecPackingBuildPDF,
  assert(edgeUI.includes('id="orderCustomerPO"'));
  assert(edgeUI.includes('id="orderShippingMethod"'));
  assert(edgeUI.includes('id="orderPalletCount"'));
+ assert(edgeUI.includes('id="addPalletWeightButton"'));
+ assert(edgeUI.includes('onclick="packingAddPalletWeight()"'));
+ const modeField={value:'cartons'},countField={value:''};
+ const oldDocument=global.document;
+ global.document={getElementById(id){return ({
+  orderShippingMethod:modeField,orderPalletCount:countField,
+  orderPalletFields:{classList:{toggle(){}}},
+  cartTotal:{textContent:''}
+ })[id]||null;}};
+ packingAddPalletWeight();assert.equal(modeField.value,'pallets');assert.equal(countField.value,'1');
+ packingAddPalletWeight();assert.equal(countField.value,'2');
+ assert.equal(packingShippingCalculation(modeField.value,Number(countField.value),147).grandWeightLb,217);
+ global.document=oldDocument;
  assert(edgeUI.includes('packingShippingDetails()'));
  assert.equal(PACKING_PALLET_TARE_LB,35);
  assert.equal(packingShippingCalculation('pallets',2,147).grandWeightLb,217);
