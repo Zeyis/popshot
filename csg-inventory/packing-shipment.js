@@ -182,7 +182,7 @@ function packingShippingCartonCount(casesPulled,override){
 function packingManualTotalWeight(raw){
  if(raw===null||raw===undefined||String(raw).trim()==='')return null;
  const n=Number(raw);
- if(!Number.isFinite(n)||n<0||n>1000000||Math.round(n*100)!==n*100)
+ if(!Number.isFinite(n)||n<0||n>1000000||Math.abs(Math.round(n*100)-n*100)>1e-7)
   throw Error('Enter a valid manual total shipping weight (lb), up to 2 decimal places.');
  return n;
 }
