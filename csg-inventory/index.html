@@ -109,7 +109,20 @@
 <div class="card"><h2 style="margin-top:0;font-size:18px">Ship-to information</h2>
 <div id="voltecOrderReferences" class="hidden"><h3 style="font-size:14px;margin:2px 0 9px">Voltec shipping references</h3>
 <div class="grid2"><div><label>Voltec Sales Order #</label><input id="orderVoltecSales" maxlength="100" placeholder="Voltec SO # (optional)"></div><div><label>Customer PO #</label><input id="orderCustomerPO" maxlength="100" placeholder="Customer purchase order # (optional)"></div></div>
-<p class="sub">These references appear on Voltec packing slips only.</p></div><div class="grid2"><div><label>Customer / company *</label><input id="orderCustomer" placeholder="Customer name"></div><div><label>Job / project</label><input id="orderJob" placeholder="Project name"></div><div><label>Attention / recipient</label><input id="orderAttention"></div><div><label>Street address</label><input id="orderStreet"></div><div><label>City</label><input id="orderCity"></div><div><label>State</label><input id="orderState" placeholder="AL" maxlength="30" autocapitalize="characters"></div><div><label>ZIP code</label><input id="orderZip" inputmode="numeric"></div></div><label>Notes</label><textarea id="orderNotes" rows="2"></textarea></div>
+<p class="sub">These references appear on Voltec packing slips only.</p>
+<div class="voltec-shipping-method">
+ <h3 style="font-size:14px;margin:13px 0 7px">How is this order shipping?</h3>
+ <div class="grid2">
+  <div><label for="orderShippingMethod">Shipping Method</label>
+  <select id="orderShippingMethod" onchange="packingShippingModeChanged()">
+   <option value="cartons">Cartons</option><option value="pallets">Pallets</option>
+  </select></div>
+  <div id="orderPalletFields" class="hidden"><label for="orderPalletCount">Number of pallets</label>
+   <input id="orderPalletCount" type="number" min="1" max="1000" step="1" inputmode="numeric" placeholder="Enter pallet count" oninput="packingShipmentSummary()">
+  </div>
+ </div>
+ <p class="sub" style="margin:8px 0 0">Pallet shipping adds <strong>35 lb for each pallet</strong> to the item weight total. Carton shipping adds no pallet weight.</p>
+</div></div><div class="grid2"><div><label>Customer / company *</label><input id="orderCustomer" placeholder="Customer name"></div><div><label>Job / project</label><input id="orderJob" placeholder="Project name"></div><div><label>Attention / recipient</label><input id="orderAttention"></div><div><label>Street address</label><input id="orderStreet"></div><div><label>City</label><input id="orderCity"></div><div><label>State</label><input id="orderState" placeholder="AL" maxlength="30" autocapitalize="characters"></div><div><label>ZIP code</label><input id="orderZip" inputmode="numeric"></div></div><label>Notes</label><textarea id="orderNotes" rows="2"></textarea></div>
 <div class="card"><h2 style="margin-top:0;font-size:18px">Pull items</h2><input id="orderSearch" oninput="renderMatches()" placeholder="Search EiKO parts only" aria-label="Search parts for selected order type"><div id="orderMatches" class="results"></div><h3 style="font-size:15px">Selected items</h3><p id="voltecShipmentHelp" class="sub hidden">Voltec shipping details: ordered, shipped, backordered, cases pulled, case pack, and weight. Only shipped quantities are deducted from inventory. Unknown case packs and weights can be left blank.</p><div id="cartRows"></div><div class="row" style="justify-content:space-between;margin-top:17px"><strong id="cartTotal">0 units</strong><button class="primary" id="placeOrderButton" onclick="placeOrder()">Create EiKO Order & Open Packing List</button></div></div></section>
 <section id="ordersSection" class="hidden"><div class="section-head"><div><h1>Order history</h1><p class="sub">Open an order's professional packing list, or cancel and restore quantities.</p></div><input id="orderFilter" oninput="renderOrders()" placeholder="Search order / job" style="max-width:280px"></div><div id="ordersList"></div></section>
 <section id="receivingSection" class="hidden">
@@ -279,6 +292,7 @@ function tab(name){
   if(Object.keys(cart).length&&!confirm('Switch to '+brandLabel(targetOrderDivision)+' ordering? Unsaved items on the other order will be cleared.'))return;
   cart={};
   if(typeof packingShipmentClear==='function')packingShipmentClear();
+  if(typeof packingShippingReset==='function')packingShippingReset();
   for(const id of ['orderCustomer','orderJob','orderAttention','orderStreet','orderCity','orderState','orderZip','orderNotes','orderSearch','orderVoltecSales','orderCustomerPO']){
    const field=$(id);if(field)field.value='';
   }
@@ -404,6 +418,7 @@ async function placeOrder(){
   const customer=titleCase($('orderCustomer').value),job=$('orderJob').value.trim();
   if(!customer)throw Error('Customer / company is required.');
   const hasVoltec=activeOrderDivision==='voltec';
+  const shipping=hasVoltec?packingShippingDetails():{shippingMethod:'cartons',palletCount:0};
   const lines=Object.entries(cart).map(([key,qty])=>{
    const [division,id]=key.split(':'),item=inventoryOf(division).find(x=>x.id===Number(id)),ordered=Number(qty);
    if(!item||!Number.isSafeInteger(ordered)||ordered<1)throw Error('Check the selected quantities.');
@@ -414,12 +429,15 @@ async function placeOrder(){
   const shipped=lines.reduce((n,l)=>n+(l.shipped??l.qty),0),ordered=lines.reduce((n,l)=>n+l.qty,0);
   if(shipped<1)throw Error('At least one unit must be shipped to create a packing list.');
   if(!confirm(hasVoltec
-   ?'Create Voltec packing slip?\n\n'+ordered+' units ordered · '+shipped+' shipped · '+(ordered-shipped)+' backordered.\n\nOnly shipped units will be deducted from inventory.'
+   ?'Create Voltec packing slip?\n\n'+ordered+' units ordered · '+shipped+' shipped · '+(ordered-shipped)+' backordered.'+
+     '\nShipping: '+(shipping.shippingMethod==='pallets'?shipping.palletCount+' pallet(s), adding '+(shipping.palletCount*35)+' lb':'Cartons, no pallet weight')+
+     '\n\nOnly shipped units will be deducted from inventory.'
    :'Create this order and deduct '+shipped+' units from shared inventory?'))return;
   const btn=$('placeOrderButton');btn.disabled=true;
   try{
    const existingIds=new Set((db.orders||[]).map(x=>x.id));
    const response=await change('order',{customer,job,
+    shippingMethod:shipping.shippingMethod,palletCount:shipping.palletCount,
     voltecSalesOrder:hasVoltec?$('orderVoltecSales').value.trim():'',
     customerPo:hasVoltec?$('orderCustomerPO').value.trim():'',
     attention:titleCase($('orderAttention').value),street:titleCase($('orderStreet').value),
@@ -427,7 +445,7 @@ async function placeOrder(){
     zip:$('orderZip').value.trim(),notes:$('orderNotes').value,lines});
    const created=(response.content?.orders||[]).find(o=>!existingIds.has(o.id))
      ||(response.content?.orders||[])[0];
-   cart={};packingShipmentClear();
+   cart={};packingShipmentClear();packingShippingReset();
    for(const id of ['orderCustomer','orderJob','orderVoltecSales','orderCustomerPO','orderAttention','orderStreet','orderCity','orderState','orderZip','orderNotes','orderSearch'])$(id).value='';
    if(created){
      openPacking(created.id);
