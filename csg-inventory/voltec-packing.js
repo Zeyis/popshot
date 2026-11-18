@@ -24,7 +24,10 @@ function voltecPackingNormalize(raw){
   job:String(raw.job||''),recipient:String(raw.recipient||''),
   attention:String(raw.shipAttention||''),street:String(raw.shipStreet||''),
   city:String(raw.shipCity||''),state:String(raw.shipState||''),zip:String(raw.shipZip||''),
-  notes:String(raw.notes||''),lines};
+  notes:String(raw.notes||''),
+  shippingMethod:raw.shippingMethod==='pallets'?'pallets':'cartons',
+  palletCount:raw.shippingMethod==='pallets'?(Number(raw.palletCount)||0):0,
+  lines};
 }
 function voltecPackingSummary(lines){
  const result={ordered:0,shipped:0,backordered:0,knownCases:0,casesKnown:0,knownLb:0,weightsKnown:0,estimatedWeight:false};
@@ -35,9 +38,21 @@ function voltecPackingSummary(lines){
  }
  return result;
 }
+function voltecPackingShippingTotals(order,itemsSummary){
+ const isPallets=order.shippingMethod==='pallets';
+ const palletCount=isPallets?Number(order.palletCount)||0:0;
+ const palletWeightLb=palletCount*35;
+ const itemsWeightLb=itemsSummary.weightsKnown?Math.round(itemsSummary.knownLb*100)/100:null;
+ const allWeightsKnown=itemsSummary.weightsKnown===order.lines.length;
+ return {shippingMethod:isPallets?'pallets':'cartons',palletCount,palletWeightLb,
+  itemsWeightLb,allWeightsKnown,
+  knownCombinedLb:(itemsWeightLb===null?0:itemsWeightLb)+palletWeightLb,
+  grandTotalLb:allWeightsKnown?Math.round(((itemsWeightLb||0)+palletWeightLb)*100)/100:null};
+}
 async function voltecPackingBuildPDF(original,options={}){
  const {PDFDocument,StandardFonts,rgb}=options.pdfLib||globalThis.PDFLib||await bjPdfLoadLibrary();
  const saved=voltecPackingNormalize(original),summary=voltecPackingSummary(saved.lines);
+ const shipping=voltecPackingShippingTotals(saved,summary);
  const pdf=await PDFDocument.create(),normal=await pdf.embedFont(StandardFonts.Helvetica),
   bold=await pdf.embedFont(StandardFonts.HelveticaBold);
  const C={black:rgb(.13,.13,.13),dark:rgb(.21,.21,.21),mid:rgb(.41,.41,.41),
@@ -165,9 +180,9 @@ async function voltecPackingBuildPDF(original,options={}){
   y=bottom;
  }
  // The summary belongs immediately below the final item; unused page stays white.
- if(y<214)pageHeader(false);
+ if(y<257)pageHeader(false);
  const summaryTop=y-12;
- page.drawRectangle({x:left,y:summaryTop-66,width:528,height:66,color:C.light});
+ page.drawRectangle({x:left,y:summaryTop-112,width:528,height:112,color:C.light});
  put('SHIPMENT TOTALS',left+10,summaryTop-17,8.6,true,C.dark);
  const metrics=[
   ['ORDERED',summary.ordered.toLocaleString('en-US'),left+10,84],
@@ -180,7 +195,18 @@ async function voltecPackingBuildPDF(original,options={}){
   put(label,x,summaryTop-33,7.0,true,C.mid,width);
   put(val,x,summaryTop-52,13.0,true,C.dark,width);
  }
- let after=summaryTop-83;
+ // The printed summary distinguishes weight of the goods from empty pallets.
+ rule(summaryTop-70,left+10,right-10,.5,C.border);
+ const goodsLabel=shipping.itemsWeightLb===null?'Not recorded':
+   shipping.itemsWeightLb.toFixed(2)+' lb'+(shipping.allWeightsKnown?'':' (known lines only)');
+ put('ITEM WEIGHT: '+goodsLabel,left+10,summaryTop-86,8,false,C.dark,295);
+ put('SHIPS: '+(shipping.shippingMethod==='pallets'?shipping.palletCount+' PALLET(S)':'CARTONS'),
+  right-12,summaryTop-86,8,true,C.dark,180,true);
+ put('PALLET WEIGHT: '+shipping.palletWeightLb.toFixed(2)+' lb',left+10,summaryTop-101,8,false,C.dark,205);
+ put((shipping.grandTotalLb!==null?'TOTAL SHIPPING WEIGHT: ':'KNOWN SHIPPING WEIGHT: ')+
+     (shipping.grandTotalLb!==null?shipping.grandTotalLb:shipping.knownCombinedLb).toFixed(2)+' lb',
+     right-12,summaryTop-101,8.5,true,C.dark,288,true);
+ let after=summaryTop-126;
  if((summary.casesKnown&&summary.casesKnown<saved.lines.length)||
     (summary.weightsKnown&&summary.weightsKnown<saved.lines.length))
   put('* Totals include only lines with known cases / weights.',left,after,7.1,false,C.mid,524);
@@ -208,7 +234,8 @@ async function voltecPackingBuildPDF(original,options={}){
  return pdf.save();
 }
 function voltecPackingHTML(order){
- const o=voltecPackingNormalize(order),summ=voltecPackingSummary(o.lines);
+ const o=voltecPackingNormalize(order),summ=voltecPackingSummary(o.lines),
+  shipping=voltecPackingShippingTotals(o,summ);
  const esc=t=>String(t??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
  const date=new Date(o.created),shownDate=isNaN(date.getTime())?'':date.toLocaleDateString('en-US');
  const lines=o.lines.map(l=>'<tr><td><strong>'+esc(l.part)+'</strong><small>'+esc(l.description)+'</small></td>'+
@@ -226,8 +253,13 @@ function voltecPackingHTML(order){
   '<div class="voltec-fallback-total">TOTALS · '+summ.ordered+' ordered · '+summ.shipped+' shipped · '+summ.backordered+
   ' backordered'+(summ.casesKnown?' · '+summ.knownCases+' known cases':'')+
   (summ.weightsKnown?' · '+summ.knownLb.toFixed(2)+' lb (known lines)':'')+'</div>'+
+  '<div class="voltec-fallback-total"><strong>SHIPPING: '+(shipping.shippingMethod==='pallets'?shipping.palletCount+' pallet(s)':'Cartons')+'</strong>'+
+  ' · Item weight: '+(shipping.itemsWeightLb===null?'unknown':shipping.itemsWeightLb.toFixed(2)+' lb')+
+  ' · Pallet weight: '+shipping.palletWeightLb.toFixed(2)+' lb'+
+  ' · '+(shipping.grandTotalLb===null?'Known weight so far: '+shipping.knownCombinedLb.toFixed(2)+' lb (some items unweighed)':
+    'Total shipping weight: '+shipping.grandTotalLb.toFixed(2)+' lb')+'</div>'+
   (o.notes?'<p class="voltec-fallback-notes">'+esc(o.notes)+'</p>':'')+'</div>';
 }
 if(typeof window!=='undefined')window.voltecPackingHTML=voltecPackingHTML;
 if(typeof module!=='undefined'&&module.exports)
- module.exports={voltecPackingNormalize,voltecPackingSummary,voltecPackingBuildPDF,voltecPackingHTML};
+ module.exports={voltecPackingNormalize,voltecPackingSummary,voltecPackingBuildPDF,voltecPackingHTML,voltecPackingShippingTotals};
