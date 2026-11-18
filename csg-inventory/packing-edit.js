@@ -5,6 +5,9 @@ let packingEditDraft=null;
 const packingEditCartonCounter=typeof packingShippingCartonCount==='function'
  ?packingShippingCartonCount
  :(typeof module!=='undefined'&&module.exports?require('./packing-shipment.js').packingShippingCartonCount:null);
+const packingEditWeightParser=typeof packingManualTotalWeight==='function'
+ ?packingManualTotalWeight
+ :(typeof module!=='undefined'&&module.exports?require('./packing-shipment.js').packingManualTotalWeight:null);
 const packingEditFields=['recipient','job','attention','street','city','state','zip','notes','voltecSalesOrder','customerPo','shippingMethod','palletCount','shippingCartons','manualTotalWeightLb'];
 function packingEditEscape(v){
  return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -188,7 +191,7 @@ function packingEditPayload(d){
  });
  const cartons=d.isVoltec?packingEditCartonCounter(d.lines.map(l=>l.casesPulled),d.shippingCartons):
   {cartons:null,manual:false};
- const manualTotalWeightLb=d.isVoltec?packingManualTotalWeight(d.manualTotalWeightLb):null;
+ const manualTotalWeightLb=d.isVoltec?packingEditWeightParser(d.manualTotalWeightLb):null;
  const shippingMethod=d.isVoltec&&d.shippingMethod==='pallets'?'pallets':'cartons';
  const palletCount=shippingMethod==='pallets'?Number(d.palletCount):0;
  if(shippingMethod==='pallets'&&(!Number.isSafeInteger(palletCount)||palletCount<1||palletCount>1000))
