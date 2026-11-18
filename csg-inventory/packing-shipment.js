@@ -151,6 +151,22 @@ function packingShippingModeChanged(){
  if(palletFields)palletFields.classList.toggle('hidden',mode!=='pallets');
  packingShipmentSummary();
 }
+function packingAddPalletWeight(){
+ // Tapping the button is equivalent to adding one 35-lb pallet.
+ // It also switches from Cartons to Pallets without erasing existing counts.
+ const mode=document.getElementById('orderShippingMethod');
+ const countField=document.getElementById('orderPalletCount');
+ if(!mode||!countField)return;
+ const raw=String(countField.value||'').trim();
+ const count=raw===''?0:Number(raw);
+ if(!Number.isSafeInteger(count)||count<0||count>=1000){
+  if(typeof alertMsg==='function')alertMsg('Enter a valid whole pallet count below 1000 before adding another pallet.',true);
+  return;
+ }
+ mode.value='pallets';
+ countField.value=String(count+1);
+ packingShippingModeChanged();
+}
 function packingShippingDetails(){
  const mode=document.getElementById('orderShippingMethod')?.value||'cartons';
  const raw=document.getElementById('orderPalletCount')?.value||'';
@@ -192,4 +208,4 @@ function packingShipmentClear(){
  for(const k of Object.keys(packingShipmentDraft))delete packingShipmentDraft[k];
 }
 if(typeof module!=='undefined'&&module.exports)
- module.exports={packingShipmentDefault,packingShipmentGet,packingShipmentLine,packingShipmentSpec,packingShipmentOrderedChanged,packingShipmentClear,packingShipmentSet,packingShipmentIsVoltecOrder,packingShipmentWeightTotal,packingShipmentDraft,PACKING_PALLET_TARE_LB,packingShippingCalculation,packingShippingDetails};
+ module.exports={packingShipmentDefault,packingShipmentGet,packingShipmentLine,packingShipmentSpec,packingShipmentOrderedChanged,packingShipmentClear,packingShipmentSet,packingShipmentIsVoltecOrder,packingShipmentWeightTotal,packingShipmentDraft,PACKING_PALLET_TARE_LB,packingShippingCalculation,packingShippingDetails,packingAddPalletWeight};
