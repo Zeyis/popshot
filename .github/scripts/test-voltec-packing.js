@@ -3,9 +3,9 @@ const fs=require('node:fs');
 const PDFLib=require('pdf-lib');
 globalThis.PDFLib=PDFLib;
 const {packingShipmentDefault,packingShipmentSpec,packingShipmentLine,packingShipmentWeightTotal,
- packingShipmentGet,packingShipmentIsVoltecOrder}=require('../../csg-inventory/packing-shipment.js');
+ packingShipmentGet,packingShipmentIsVoltecOrder,PACKING_PALLET_TARE_LB,packingShippingCalculation}=require('../../csg-inventory/packing-shipment.js');
 const {voltecPackingNormalize,voltecPackingSummary,voltecPackingBuildPDF,
- voltecPackingHTML}=require('../../csg-inventory/voltec-packing.js');
+ voltecPackingHTML,voltecPackingShippingTotals}=require('../../csg-inventory/voltec-packing.js');
 (async()=>{
  const html=fs.readFileSync('csg-inventory/index.html','utf8');
  const packingCode=fs.readFileSync('csg-inventory/packing-pdf.js','utf8');
@@ -13,6 +13,14 @@ const {voltecPackingNormalize,voltecPackingSummary,voltecPackingBuildPDF,
  assert(edgeUI.includes('id="voltecOrderReferences" class="hidden"'));
  assert(edgeUI.includes('id="orderVoltecSales"'));
  assert(edgeUI.includes('id="orderCustomerPO"'));
+ assert(edgeUI.includes('id="orderShippingMethod"'));
+ assert(edgeUI.includes('id="orderPalletCount"'));
+ assert(edgeUI.includes('packingShippingDetails()'));
+ assert.equal(PACKING_PALLET_TARE_LB,35);
+ assert.equal(packingShippingCalculation('pallets',2,147).grandWeightLb,217);
+ assert.equal(packingShippingCalculation('cartons',0,147).grandWeightLb,147);
+ assert.equal(packingShippingCalculation('pallets',2,null).grandWeightLb,null);
+ assert.throws(()=>packingShippingCalculation('pallets',1.5,147),/valid whole number/);
  assert(edgeUI.includes("if(division==='voltec')return packingShipmentMarkup(key,x,qty)"));
  assert(edgeUI.includes("if((o.lines||[]).some(l=>l.division==='voltec'))"));
  assert(edgeUI.includes('voltecPackingHTML(o)'));
@@ -79,6 +87,19 @@ const {voltecPackingNormalize,voltecPackingSummary,voltecPackingBuildPDF,
   {ordered:8,shipped:8,backordered:0,casesPulled:4,casePack:2,perCaseWeightLb:18,weightLb:72,weightEstimated:false}
  ];
  const caseSum=voltecPackingSummary(twoCases);
+ const palletOrder=voltecPackingNormalize({...raw,shippingMethod:'pallets',palletCount:2,lines:twoCases});
+ const palletTotals=voltecPackingShippingTotals(palletOrder,voltecPackingSummary(palletOrder.lines));
+ assert.equal(palletTotals.palletWeightLb,70);
+ assert.equal(palletTotals.itemsWeightLb,147);
+ assert.equal(palletTotals.grandTotalLb,217);
+ assert.equal(voltecPackingShippingTotals({...palletOrder,shippingMethod:'cartons',palletCount:0},
+  voltecPackingSummary(palletOrder.lines)).grandTotalLb,147);
+ assert.equal(voltecPackingShippingTotals(voltecPackingNormalize({...raw,shippingMethod:'pallets',palletCount:2}),
+  voltecPackingSummary(voltecPackingNormalize({...raw,shippingMethod:'pallets',palletCount:2}).lines)).grandTotalLb,null);
+ const palletHtml=voltecPackingHTML({...raw,shippingMethod:'pallets',palletCount:2,lines:twoCases});
+ assert(palletHtml.includes('2 pallet(s)'));
+ assert(palletHtml.includes('Pallet weight: 70.00 lb'));
+ assert(palletHtml.includes('Total shipping weight: 217.00 lb'));
  assert.equal(caseSum.knownCases,7);
  assert.equal(caseSum.knownLb,147);
  const fromForm=packingShipmentDefault({part:'08-00513',qty:60},'voltec',8);
@@ -97,6 +118,11 @@ const {voltecPackingNormalize,voltecPackingSummary,voltecPackingBuildPDF,
  assert(!fallback.includes('undefined'));
  const logo=Buffer.from(fs.readFileSync('csg-inventory/csg-logo.base64','utf8').trim(),'base64');
  const pdfData=await voltecPackingBuildPDF(raw,{pdfLib:PDFLib,logoBytes:logo});
+ const palletPdf=await PDFLib.PDFDocument.load(await voltecPackingBuildPDF(
+  {...raw,shippingMethod:'pallets',palletCount:2,lines:twoCases},
+  {pdfLib:PDFLib,logoBytes:logo}));
+ assert.equal(palletPdf.getPageCount(),1,'Pallet weight summary fits on one letter page');
+ assert.equal(palletPdf.getPages()[0].getHeight(),792);
  const pdf=await PDFLib.PDFDocument.load(pdfData);
  assert.equal(pdf.getTitle(),'Cahaba Sales Group - Voltec Packing Slip - CSG-2026-0134');
  assert.equal(pdf.getPageCount(),1,'One short shipment stays one US Letter sheet');
