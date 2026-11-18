@@ -1,7 +1,7 @@
 const assert=require('node:assert/strict');
 const fs=require('node:fs');
 const {
- packingEditInitial,packingEditComputed,packingEditPayload
+ packingEditInitial,packingEditComputed,packingEditPayload,packingEditAddPallet
 }=require('../../csg-inventory/packing-edit.js');
 const {packingAddPalletWeight,packingShippingCalculation}=require('../../csg-inventory/packing-shipment.js');
 const html=fs.readFileSync('csg-inventory/index.html','utf8');
@@ -77,5 +77,7 @@ assert.equal(count.value,'1');
 packingAddPalletWeight();
 assert.equal(count.value,'2');
 assert.equal(packingShippingCalculation('pallets',2,147).grandWeightLb,217);
+// Saved-order editor also has the one-tap 35-lb button.
+assert(fs.readFileSync('csg-inventory/packing-edit.js','utf8').includes('onclick="packingEditAddPallet()"'));
 global.document=realDoc;
 console.log('Saved packing-list editing passed: line quantities, stock-sensitive payloads, references, pallets, and 35 lb one-tap button.');
