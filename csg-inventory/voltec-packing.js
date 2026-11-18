@@ -28,6 +28,7 @@ function voltecPackingNormalize(raw){
   shippingMethod:raw.shippingMethod==='pallets'?'pallets':'cartons',
   palletCount:raw.shippingMethod==='pallets'?(Number(raw.palletCount)||0):0,
   shippingCartons:raw.shippingCartons==null||raw.shippingCartons===''?null:Number(raw.shippingCartons),
+  manualTotalWeightLb:raw.manualTotalWeightLb==null||raw.manualTotalWeightLb===''?null:Number(raw.manualTotalWeightLb),
   lines};
 }
 function voltecPackingSummary(lines){
@@ -50,10 +51,13 @@ function voltecPackingShippingTotals(order,itemsSummary){
  const autoCartons=knownCaseCounts.length>0&&knownCaseCounts.every(c=>Number.isSafeInteger(c)&&c>=0)
   ?knownCaseCounts.reduce((n,c)=>n+c,0):null;
  const shippingCartons=manualCartons?order.shippingCartons:autoCartons;
- return {shippingMethod:isPallets?'pallets':'cartons',palletCount,palletWeightLb,
+ const manualTotalWeightLb=order.manualTotalWeightLb===null||order.manualTotalWeightLb===undefined?null:Number(order.manualTotalWeightLb);
+ const calculatedTotalLb=allWeightsKnown?Math.round(((itemsWeightLb||0)+palletWeightLb)*100)/100:null;
+ return {shippingMethod:isPallets?'pallets':'cartons',palletCount,palletWeightLb,manualTotalWeightLb,
+  calculatedTotalLb,
   shippingCartons,cartonsManuallySet:manualCartons,itemsWeightLb,allWeightsKnown,
   knownCombinedLb:(itemsWeightLb===null?0:itemsWeightLb)+palletWeightLb,
-  grandTotalLb:allWeightsKnown?Math.round(((itemsWeightLb||0)+palletWeightLb)*100)/100:null};
+  grandTotalLb:manualTotalWeightLb!==null?manualTotalWeightLb:calculatedTotalLb};
 }
 async function voltecPackingBuildPDF(original,options={}){
  const {PDFDocument,StandardFonts,rgb}=options.pdfLib||globalThis.PDFLib||await bjPdfLoadLibrary();
@@ -210,7 +214,8 @@ async function voltecPackingBuildPDF(original,options={}){
   (shipping.shippingMethod==='pallets'?'  |  '+shipping.palletCount+' PALLET(S)':''),
   right-12,summaryTop-86,8,true,C.dark,180,true);
  put('PALLET WEIGHT: '+shipping.palletWeightLb.toFixed(2)+' lb',left+10,summaryTop-101,8,false,C.dark,205);
- put((shipping.grandTotalLb!==null?'TOTAL SHIPPING WEIGHT: ':'KNOWN SHIPPING WEIGHT: ')+
+ put((shipping.manualTotalWeightLb!==null?'MANUAL FINAL WEIGHT: ':
+      shipping.grandTotalLb!==null?'TOTAL SHIPPING WEIGHT: ':'KNOWN SHIPPING WEIGHT: ')+
      (shipping.grandTotalLb!==null?shipping.grandTotalLb:shipping.knownCombinedLb).toFixed(2)+' lb',
      right-12,summaryTop-101,8.5,true,C.dark,288,true);
  let after=summaryTop-126;
@@ -265,8 +270,10 @@ function voltecPackingHTML(order){
   (shipping.cartonsManuallySet?' (adjusted)':' (from pulled cases)')+'</strong>'+
   ' · Item weight: '+(shipping.itemsWeightLb===null?'unknown':shipping.itemsWeightLb.toFixed(2)+' lb')+
   ' · Pallet weight: '+shipping.palletWeightLb.toFixed(2)+' lb'+
-  ' · '+(shipping.grandTotalLb===null?'Known weight so far: '+shipping.knownCombinedLb.toFixed(2)+' lb (some items unweighed)':
-    'Total shipping weight: '+shipping.grandTotalLb.toFixed(2)+' lb')+'</div>'+
+  ' · '+(shipping.manualTotalWeightLb!==null
+    ?'Manual FINAL shipping weight: '+shipping.manualTotalWeightLb.toFixed(2)+' lb (includes pallets)'
+    :shipping.grandTotalLb===null?'Known weight so far: '+shipping.knownCombinedLb.toFixed(2)+' lb (some items unweighed)'
+    :'Total shipping weight: '+shipping.grandTotalLb.toFixed(2)+' lb')+'</div>'+
   (o.notes?'<p class="voltec-fallback-notes">'+esc(o.notes)+'</p>':'')+'</div>';
 }
 if(typeof window!=='undefined')window.voltecPackingHTML=voltecPackingHTML;
