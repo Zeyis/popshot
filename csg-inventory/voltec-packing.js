@@ -10,10 +10,13 @@ function voltecPackingNormalize(raw){
   const backordered=Number(r.backordered??Math.max(0,ordered-shipped));
   const casesPulled=(r.casesPulled==null||r.casesPulled==='')?null:Number(r.casesPulled);
   const casePack=(r.casePack==null||r.casePack==='')?null:Number(r.casePack);
-  const weightLb=(r.weightLb==null||r.weightLb==='')?null:Number(r.weightLb);
+  const perCaseWeightLb=(r.perCaseWeightLb==null||r.perCaseWeightLb==='')?null:Number(r.perCaseWeightLb);
+  const weightLb=perCaseWeightLb!==null&&casesPulled!==null
+   ?Math.round(perCaseWeightLb*casesPulled*100)/100
+   :(r.weightLb==null||r.weightLb==='')?null:Number(r.weightLb);
   return {index:index+1,part:String(r.part||''),code:String(r.code||''),
    description:String(r.desc||''),division:r.division==='voltec'?'Voltec':'EiKO',
-   ordered,shipped,backordered,casesPulled,casePack,weightLb,
+   ordered,shipped,backordered,casesPulled,casePack,perCaseWeightLb,weightLb,
    weightEstimated:r.weightEstimated===true};
  });
  return {number:String(raw.number||''),created:String(raw.created||''),
@@ -86,7 +89,7 @@ async function voltecPackingBuildPDF(original,options={}){
   put('SHIPPED',382,h-6,7,true,C.white,45,true);
   put('B/O',425,h-6,7,true,C.white,34,true);
   put('CASES',473,h-6,7,true,C.white,44,true);
-  put('WEIGHT',563,h-1,7,true,C.white,69,true);
+  put('TOTAL',563,h-1,7,true,C.white,69,true);
   put('(LB)',563,h-13,6.4,true,C.white,69,true);
   y-=35;
  }
@@ -137,7 +140,7 @@ async function voltecPackingBuildPDF(original,options={}){
  function rowHeight(item){
   let h=36;
   if(safe(item.description).length>44)h+=10;
-  if(item.casePack)h+=12;
+  if(item.casePack||item.perCaseWeightLb!==null)h+=12;
   return h;
  }
  pageHeader(true);
@@ -149,7 +152,9 @@ async function voltecPackingBuildPDF(original,options={}){
   put(String(line.index).padStart(2,'0')+' '+line.part,left+9,y-15,8.3,true,C.dark,204);
   const ds=wrap((line.division==='Voltec'?'':'EiKO  |  ')+line.description,200,normal,7,2);
   ds.forEach((t,i)=>put(t,left+9,y-26-i*10,7,false,C.mid,202));
-  if(line.casePack)put('CASE PACK: '+line.casePack+' EA',left+9,bottom+6,6.4,false,C.mid,198);
+  if(line.casePack||line.perCaseWeightLb!==null)put(
+   [line.casePack?'CASE PACK: '+line.casePack+' EA':'',line.perCaseWeightLb!==null?'WT/CASE: '+line.perCaseWeightLb.toFixed(2)+' LB':''].filter(Boolean).join('  |  '),
+   left+9,bottom+6,6.4,false,C.mid,198);
   put(line.code||'-',259,y-21,7.4,false,C.black,47);
   put(line.ordered.toLocaleString('en-US'),335,y-21,9,true,C.dark,43,true);
   put(line.shipped.toLocaleString('en-US'),382,y-21,9,true,C.dark,43,true);
@@ -208,7 +213,7 @@ function voltecPackingHTML(order){
  const date=new Date(o.created),shownDate=isNaN(date.getTime())?'':date.toLocaleDateString('en-US');
  const lines=o.lines.map(l=>'<tr><td><strong>'+esc(l.part)+'</strong><small>'+esc(l.description)+'</small></td>'+
   '<td>'+esc(l.code||'-')+'</td><td>'+l.ordered+'</td><td>'+l.shipped+'</td><td>'+l.backordered+'</td>'+
-  '<td>'+(l.casesPulled==null?'—':l.casesPulled)+'</td><td>'+(l.weightLb==null?'—':(l.weightEstimated?'~':'')+l.weightLb.toFixed(2))+'</td></tr>').join('');
+  '<td>'+(l.casesPulled==null?'—':l.casesPulled)+'</td><td>'+(l.weightLb==null?'—':(l.weightEstimated?'~':'')+l.weightLb.toFixed(2))+(l.perCaseWeightLb===null?'':'<small>'+l.perCaseWeightLb.toFixed(2)+' lb/case</small>')+'</td></tr>').join('');
  return '<div class="voltec-fallback">'+
   '<div class="voltec-fallback-head"><div><strong>CAHABA SALES GROUP</strong><small>113 45th Place North · Birmingham, AL 35222</small></div><h2>PACKING SLIP</h2></div>'+
   '<div class="voltec-fallback-meta"><div><small>CSG PO #</small><strong>'+esc(o.number)+'</strong></div>'+
@@ -217,7 +222,7 @@ function voltecPackingHTML(order){
   '<div class="voltec-fallback-address"><div><small>SHIP FROM</small><strong>Cahaba Sales Group</strong><p>113 45th Place North<br>Birmingham, AL 35222</p></div>'+
   '<div><small>SHIP TO</small><strong>'+esc(o.recipient)+'</strong><p>'+[o.attention,o.street,[o.city,o.state,o.zip].filter(Boolean).join(' ')].filter(Boolean).map(esc).join('<br>')+'</p></div></div>'+
   '<div class="voltec-fallback-caption">Order date: '+esc(shownDate)+(o.job?' · Job: '+esc(o.job):'')+'</div>'+
-  '<table class="voltec-fallback-table"><thead><tr><th>PART / DESCRIPTION</th><th>CODE</th><th>ORDERED</th><th>SHIPPED</th><th>B/O</th><th>CASES</th><th>WEIGHT LB</th></tr></thead><tbody>'+lines+'</tbody></table>'+
+  '<table class="voltec-fallback-table"><thead><tr><th>PART / DESCRIPTION</th><th>CODE</th><th>ORDERED</th><th>SHIPPED</th><th>B/O</th><th>CASES</th><th>TOTAL LB</th></tr></thead><tbody>'+lines+'</tbody></table>'+
   '<div class="voltec-fallback-total">TOTALS · '+summ.ordered+' ordered · '+summ.shipped+' shipped · '+summ.backordered+
   ' backordered'+(summ.casesKnown?' · '+summ.knownCases+' known cases':'')+
   (summ.weightsKnown?' · '+summ.knownLb.toFixed(2)+' lb (known lines)':'')+'</div>'+
