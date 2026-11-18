@@ -5,7 +5,7 @@ let packingEditDraft=null;
 const packingEditCartonCounter=typeof packingShippingCartonCount==='function'
  ?packingShippingCartonCount
  :(typeof module!=='undefined'&&module.exports?require('./packing-shipment.js').packingShippingCartonCount:null);
-const packingEditFields=['recipient','job','attention','street','city','state','zip','notes','voltecSalesOrder','customerPo','shippingMethod','palletCount','shippingCartons'];
+const packingEditFields=['recipient','job','attention','street','city','state','zip','notes','voltecSalesOrder','customerPo','shippingMethod','palletCount','shippingCartons','manualTotalWeightLb'];
 function packingEditEscape(v){
  return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 }
@@ -19,6 +19,7 @@ function packingEditInitial(order){
   shippingMethod:order.shippingMethod==='pallets'?'pallets':'cartons',
   palletCount:order.shippingMethod==='pallets'?String(order.palletCount||''):'',
   shippingCartons:order.shippingCartons==null?'':String(order.shippingCartons),
+  manualTotalWeightLb:order.manualTotalWeightLb==null?'':String(order.manualTotalWeightLb),
   lines:(order.lines||[]).map(l=>({
     division:l.division,id:l.id,part:l.part,code:l.code||'',
     ordered:String(l.ordered??l.qty),shipped:String(l.shipped??l.qty),
@@ -48,11 +49,14 @@ function packingEditComputed(draft){
  const pallets=draft.shippingMethod==='pallets'?(Number(draft.palletCount)||0):0;
  const tare=Number.isSafeInteger(pallets)&&pallets>=0?pallets*35:0;
  const allKnown=known===draft.lines.length;
+ const manualTotalWeightLb=draft.isVoltec&&draft.manualTotalWeightLb!==''?Number(draft.manualTotalWeightLb):null;
  const boxes=packingEditCartonCounter(draft.lines.map(l=>l.casesPulled),draft.shippingCartons);
  return {ordered,shipped,backordered:ordered-shipped,cases,
   shippingCartons:boxes.cartons,cartonsManuallySet:boxes.manual,goodsWeightLb,
   pallets,palletWeightLb:tare,knownWeightLb:goodsWeightLb+tare,allKnown,
-  totalWeightLb:allKnown?Math.round((goodsWeightLb+tare)*100)/100:null};
+  manualTotalWeightLb,
+  totalWeightLb:manualTotalWeightLb!==null?manualTotalWeightLb:
+   allKnown?Math.round((goodsWeightLb+tare)*100)/100:null};
 }
 function packingEditTextField(label,key,options={}){
  const d=packingEditDraft;
@@ -104,7 +108,12 @@ function packingEditRender(){
    '<label id="packingEditPalletLabel"'+(d.shippingMethod==='cartons'?' class="hidden"':'')+'>Number of pallets'+
    '<input type="number" min="1" max="1000" step="1" inputmode="numeric" id="packingEditPalletCount" value="'+
    packingEditEscape(d.palletCount)+'" oninput="packingEditSet(\'palletCount\',this.value)"></label></div>'+
-   '<button type="button" class="slim" style="margin-top:10px" onclick="packingEditAddPallet()">+ Add Pallet Weight (35 lb)</button>':'')+
+   '<button type="button" class="slim" style="margin-top:10px" onclick="packingEditAddPallet()">+ Add Pallet Weight (35 lb)</button>'+
+   '<div style="margin-top:14px;max-width:370px"><label>Manual TOTAL shipping weight (lb) · Optional'+
+    '<input type="number" min="0" max="1000000" step="0.01" inputmode="decimal"'+
+    ' placeholder="Enter final weight" value="'+packingEditEscape(d.manualTotalWeightLb)+
+    '" oninput="packingEditSet(\'manualTotalWeightLb\',this.value)"></label>'+
+    '<p class="sub">Overrides the calculated total and already includes pallets. Leave blank to calculate automatically.</p></div>':'')+
   '<h3>Original order lines</h3><p class="sub">Part numbers stay fixed. Save a new order to add or remove parts.</p>'+
   lines+packingEditTextField('Notes','notes',{optional:true,multiline:true})+
   '<div id="packingEditTotals" class="packing-edit-summary"></div>'+
@@ -120,8 +129,10 @@ function packingEditSummary(){
   ' backordered · '+s.cases+' cases pulled'+
   (packingEditDraft.isVoltec&&s.shippingCartons!==null?' · '+s.shippingCartons+' shipping boxes'+(s.cartonsManuallySet?' (adjusted)':''):'')+
   (packingEditDraft.isVoltec?' · '+s.pallets+' pallets (+'+s.palletWeightLb+' lb)':'')+
-  ' · '+(s.allKnown?'Total weight: ':'Known weight: ')+s.knownWeightLb.toFixed(2)+' lb'+
-  (!s.allKnown?' (some weights unknown)':'');
+  ' · '+(s.manualTotalWeightLb!==null
+   ?'Manual FINAL shipping weight: '+s.totalWeightLb.toFixed(2)+' lb (pallets included)'
+   :(s.allKnown?'Calculated total: ':'Known weight: ')+s.knownWeightLb.toFixed(2)+' lb'+
+     (!s.allKnown?' (some weights unknown)':''));
 }
 function packingEditAddPallet(){
  if(!packingEditDraft||!packingEditDraft.isVoltec)return;
@@ -177,6 +188,7 @@ function packingEditPayload(d){
  });
  const cartons=d.isVoltec?packingEditCartonCounter(d.lines.map(l=>l.casesPulled),d.shippingCartons):
   {cartons:null,manual:false};
+ const manualTotalWeightLb=d.isVoltec?packingManualTotalWeight(d.manualTotalWeightLb):null;
  const shippingMethod=d.isVoltec&&d.shippingMethod==='pallets'?'pallets':'cartons';
  const palletCount=shippingMethod==='pallets'?Number(d.palletCount):0;
  if(shippingMethod==='pallets'&&(!Number.isSafeInteger(palletCount)||palletCount<1||palletCount>1000))
@@ -184,7 +196,8 @@ function packingEditPayload(d){
  return {id:d.id,recipient:d.recipient,job:d.job,attention:d.attention,street:d.street,
   city:d.city,state:d.state,zip:d.zip,notes:d.notes,voltecSalesOrder:d.voltecSalesOrder,
   customerPo:d.customerPo,shippingMethod,palletCount,
-  shippingCartons:cartons.manual?cartons.cartons:null,lines};
+  shippingCartons:cartons.manual?cartons.cartons:null,
+  manualTotalWeightLb,lines};
 }
 function packingEditOpen(id){
  const o=(db.orders||[]).find(x=>x.id===(id||selectedOrder));
