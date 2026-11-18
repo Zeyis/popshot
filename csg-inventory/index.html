@@ -53,6 +53,21 @@
 .voltec-fallback-total{background:#eee;padding:16px 12px;margin-top:13px;font-weight:700;font-size:11px}
 .voltec-fallback-notes{padding:15px 0;color:#555;font-size:11px;white-space:pre-wrap}
 @media(max-width:620px){.voltec-fallback-meta{grid-template-columns:1fr 1fr}.voltec-fallback{font-size:10px}.voltec-fallback-table{font-size:9px}.voltec-fallback-table th{font-size:7.5px;letter-spacing:0}.voltec-fallback-table td{padding:8px 2px}.voltec-fallback-head h2{font-size:16px}}
+
+.packing-edit-panel{background:#fff;border:1px solid #d3d3d3;border-top:4px solid #383838;border-radius:12px;padding:20px;margin:16px 0;box-shadow:0 4px 16px #00000010}
+.packing-edit-panel.hidden{display:none!important}
+.packing-edit-header{display:flex;justify-content:space-between;gap:12px;align-items:flex-start;flex-wrap:wrap}
+.packing-edit-header h2{margin:0 0 6px;font-size:19px;color:#222}
+.packing-edit-header p{margin:0 0 14px}
+.packing-edit-panel h3{font-size:14px;margin:24px 0 12px;color:#333}
+.packing-edit-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+.packing-edit-grid label{font-size:12px;font-weight:700;color:#444;display:flex;flex-direction:column;gap:6px;min-width:0}
+.packing-edit-grid input,.packing-edit-grid select,.packing-edit-grid textarea{width:100%;min-width:0;font-size:14px}
+.packing-edit-row{border:1px solid #dedede;padding:13px;margin:10px 0;border-radius:9px;background:#fbfbfb}
+.packing-edit-row>strong{color:#222;overflow-wrap:anywhere}
+.packing-edit-row .packing-edit-grid{margin-top:11px}
+.packing-edit-summary{background:#eee;border-radius:8px;margin:18px 0;padding:14px;color:#333;font-weight:700;line-height:1.5}
+@media(max-width:650px){.packing-edit-panel{padding:14px}.packing-edit-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}}
 </style><link rel="stylesheet" href="bj.css"><link rel="stylesheet" href="eiko-autocomplete.css"><link rel="stylesheet" href="activity-log.css"></head>
 <body>
 <header><div class="brand"><div class="emblem">CSG</div><div><div class="brand-name">CAHABA SALES GROUP</div><div class="brand-sub">WAREHOUSE · EiKO + VOLTEC</div></div></div><div class="user" id="identityHeader">Secure shared inventory</div></header>
@@ -205,7 +220,7 @@
 <option value="other">Other actions</option>
 </select></div><div id="activityCount" class="activity-count"></div>
 <div id="activityRows"></div></section>
-<section id="packingSection" class="hidden"><div class="preview-toolbar"><div><h1 style="margin:0">Packing List</h1><p class="sub" style="margin:3px 0">The PDF opens here automatically after creating an order. Use Print or Download to save a copy.</p></div><div class="row"><button onclick="tab('orders')">← Orders</button><button class="primary" id="packingPdfOpen" onclick="packingOpenPDF(false)">Open PDF / Print</button><button id="packingPdfDownload" onclick="packingOpenPDF(true)">Download PDF</button></div></div><p id="packingPdfStatus" class="sub" role="status" aria-live="polite"></p><div id="packingPDFPreview" class="preview-surface hidden"></div><div class="preview-surface" id="packingHtmlFallback"><article id="packingPaper" class="packingPaper"></article></div></section>
+<section id="packingSection" class="hidden"><div class="preview-toolbar"><div><h1 style="margin:0">Packing List</h1><p class="sub" style="margin:3px 0">The PDF opens here automatically after creating an order. Use Print or Download to save a copy.</p></div><div class="row"><button onclick="tab('orders')">← Orders</button><button class="primary" id="packingPdfOpen" onclick="packingOpenPDF(false)">Open PDF / Print</button><button id="packingEditButton" onclick="packingEditOpen()">Edit Packing List</button><button id="packingPdfDownload" onclick="packingOpenPDF(true)">Download PDF</button></div></div><section id="packingEditPanel" class="packing-edit-panel hidden" aria-label="Edit packing list"></section><p id="packingPdfStatus" class="sub" role="status" aria-live="polite"></p><div id="packingPDFPreview" class="preview-surface hidden"></div><div class="preview-surface" id="packingHtmlFallback"><article id="packingPaper" class="packingPaper"></article></div></section>
 </main>
 <script>
 'use strict';
@@ -464,7 +479,7 @@ async function placeOrder(){
 function renderOrders(){
  const q=$('orderFilter').value.trim().toLowerCase();
  $('ordersList').innerHTML=(db.orders||[]).filter(o=>(o.number+' '+o.recipient+' '+o.job+' '+o.person).toLowerCase().includes(q)).map(o=>
- '<article class="card ordercard"><div class="row"><div><h3>'+E(o.number)+'</h3><span class="muted">'+dateTime(o.created)+' · '+E(o.person)+'</span></div><span class="badge'+(o.status==='cancelled'?' cancelled':'')+'">'+(o.status==='cancelled'?'Cancelled':'Confirmed')+'</span></div><p><strong>'+E(o.recipient)+'</strong>'+(o.job?' · '+E(o.job):'')+'</p><div class="small">'+(o.lines||[]).map(l=>'<div>'+E(l.part)+' <span class="tag">'+brandLabel(l.division)+'</span> × '+Number(l.qty)+'</div>').join('')+'</div><div class="row" style="margin-top:15px"><button class="slim" onclick="openPacking(\''+E(o.id)+'\')">View packing list</button>'+(o.status==='cancelled'?'':'<button class="slim danger" onclick="cancelOrder(\''+E(o.id)+'\')">Cancel & return stock</button>')+'</div></article>').join('')||'<div class="card">No orders found.</div>';
+ '<article class="card ordercard"><div class="row"><div><h3>'+E(o.number)+'</h3><span class="muted">'+dateTime(o.created)+' · '+E(o.person)+'</span></div><span class="badge'+(o.status==='cancelled'?' cancelled':'')+'">'+(o.status==='cancelled'?'Cancelled':'Confirmed')+'</span></div><p><strong>'+E(o.recipient)+'</strong>'+(o.job?' · '+E(o.job):'')+'</p><div class="small">'+(o.lines||[]).map(l=>'<div>'+E(l.part)+' <span class="tag">'+brandLabel(l.division)+'</span> × '+Number(l.qty)+'</div>').join('')+'</div><div class="row" style="margin-top:15px"><button class="slim" onclick="openPacking(\''+E(o.id)+'\')">View packing list</button>'+(o.status==='cancelled'?'':'<button class="slim" onclick="packingEditOpen(\''+E(o.id)+'\')">Edit Packing List</button><button class="slim danger" onclick="cancelOrder(\''+E(o.id)+'\')">Cancel & return stock</button>')+'</div></article>').join('')||'<div class="card">No orders found.</div>';
 }
 async function cancelOrder(id){
  const o=(db.orders||[]).find(x=>x.id===id);if(!o)return;
@@ -474,7 +489,7 @@ async function cancelOrder(id){
 function openPacking(id){
  const o=(db.orders||[]).find(x=>x.id===id);if(!o)return;
  if(o.status==='cancelled'){alertMsg('A cancelled order cannot be printed as an active packing list.',true);return}
- selectedOrder=id;renderPacking(id);tab('packing');window.packingPreviewPDF?.(o);
+ packingEditClose();selectedOrder=id;renderPacking(id);tab('packing');window.packingPreviewPDF?.(o);
 }
 function renderPacking(id){
  const o=(db.orders||[]).find(x=>x.id===id);if(!o)return;
@@ -516,4 +531,4 @@ async function start(){
 document.addEventListener('visibilitychange',()=>{if(!document.hidden&&token)refresh().catch(()=>{})});
 setInterval(()=>{if(token&&!document.hidden&&activeTab!=='part'&&activeTab!=='order'&&activeTab!=='packing'&&activeTab!=='bj'&&activeTab!=='bjprint')refresh().catch(()=>{})},30000);
 start();
-</script><script src="receiving-ocr.js"></script><script src="receiving.js"></script><script src="bj-pdf.js"></script><script src="bj.js"></script><script src="eiko-autocomplete.js"></script><script src="activity-log.js"></script><script src="inventory-report.js"></script><script src="packing-shipment.js"></script><script src="voltec-packing.js"></script><script src="packing-pdf.js"></script></body></html>
+</script><script src="receiving-ocr.js"></script><script src="receiving.js"></script><script src="bj-pdf.js"></script><script src="bj.js"></script><script src="eiko-autocomplete.js"></script><script src="activity-log.js"></script><script src="inventory-report.js"></script><script src="packing-shipment.js"></script><script src="voltec-packing.js"></script><script src="packing-edit.js"></script><script src="packing-pdf.js"></script></body></html>
