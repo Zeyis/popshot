@@ -2,7 +2,7 @@
    Changing shipped quantities updates inventory through authenticated backend. */
 'use strict';
 let packingEditDraft=null;
-const packingEditFields=['recipient','job','attention','street','city','state','zip','notes','voltecSalesOrder','customerPo','shippingMethod','palletCount'];
+const packingEditFields=['recipient','job','attention','street','city','state','zip','notes','voltecSalesOrder','customerPo','shippingMethod','palletCount','shippingCartons'];
 function packingEditEscape(v){
  return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 }
@@ -15,6 +15,7 @@ function packingEditInitial(order){
   notes:order.notes||'',voltecSalesOrder:order.voltecSalesOrder||'',customerPo:order.customerPo||'',
   shippingMethod:order.shippingMethod==='pallets'?'pallets':'cartons',
   palletCount:order.shippingMethod==='pallets'?String(order.palletCount||''):'',
+  shippingCartons:order.shippingCartons==null?'':String(order.shippingCartons),
   lines:(order.lines||[]).map(l=>({
     division:l.division,id:l.id,part:l.part,code:l.code||'',
     ordered:String(l.ordered??l.qty),shipped:String(l.shipped??l.qty),
@@ -44,7 +45,9 @@ function packingEditComputed(draft){
  const pallets=draft.shippingMethod==='pallets'?(Number(draft.palletCount)||0):0;
  const tare=Number.isSafeInteger(pallets)&&pallets>=0?pallets*35:0;
  const allKnown=known===draft.lines.length;
- return {ordered,shipped,backordered:ordered-shipped,cases,goodsWeightLb,
+ const boxes=packingShippingCartonCount(draft.lines.map(l=>l.casesPulled),draft.shippingCartons);
+ return {ordered,shipped,backordered:ordered-shipped,cases,
+  shippingCartons:boxes.cartons,cartonsManuallySet:boxes.manual,goodsWeightLb,
   pallets,palletWeightLb:tare,knownWeightLb:goodsWeightLb+tare,allKnown,
   totalWeightLb:allKnown?Math.round((goodsWeightLb+tare)*100)/100:null};
 }
@@ -89,6 +92,9 @@ function packingEditRender(){
   (isV?'<h3>Voltec shipping details</h3><div class="packing-edit-grid">'+
    packingEditTextField('Voltec Sales Order #','voltecSalesOrder',{optional:true})+
    packingEditTextField('Customer PO #','customerPo',{optional:true})+
+   '<label>Actual shipping boxes / cartons <span class="muted">(editable)</span>'+
+    '<input type="number" min="0" max="100000" step="1" inputmode="numeric" placeholder="Auto from cases pulled" value="'+
+     packingEditEscape(d.shippingCartons)+'" oninput="packingEditSet(\'shippingCartons\',this.value)"></label>'+
    '<label>Shipping Method<select id="packingEditShippingMethod" onchange="packingEditSet(\'shippingMethod\',this.value)">'+
    '<option value="cartons"'+(d.shippingMethod==='cartons'?' selected':'')+'>Cartons</option>'+
    '<option value="pallets"'+(d.shippingMethod==='pallets'?' selected':'')+'>Pallets</option></select></label>'+
@@ -108,7 +114,8 @@ function packingEditSummary(){
  if(!host||!packingEditDraft)return;
  const s=packingEditComputed(packingEditDraft);
  host.textContent=s.ordered+' ordered · '+s.shipped+' shipped · '+Math.max(0,s.backordered)+
-  ' backordered · '+s.cases+' cases'+
+  ' backordered · '+s.cases+' cases pulled'+
+  (packingEditDraft.isVoltec&&s.shippingCartons!==null?' · '+s.shippingCartons+' shipping boxes'+(s.cartonsManuallySet?' (adjusted)':''):'')+
   (packingEditDraft.isVoltec?' · '+s.pallets+' pallets (+'+s.palletWeightLb+' lb)':'')+
   ' · '+(s.allKnown?'Total weight: ':'Known weight: ')+s.knownWeightLb.toFixed(2)+' lb'+
   (!s.allKnown?' (some weights unknown)':'');
@@ -165,13 +172,16 @@ function packingEditPayload(d){
    perCaseWeightLb:d.isVoltec?nullable(l.perCaseWeightLb,'weight per case',false):null,
    weightEstimated:l.weightEstimated,weightSource:l.weightSource,weightSourceUrl:l.weightSourceUrl};
  });
+ const cartons=d.isVoltec?packingShippingCartonCount(d.lines.map(l=>l.casesPulled),d.shippingCartons):
+  {cartons:null,manual:false};
  const shippingMethod=d.isVoltec&&d.shippingMethod==='pallets'?'pallets':'cartons';
  const palletCount=shippingMethod==='pallets'?Number(d.palletCount):0;
  if(shippingMethod==='pallets'&&(!Number.isSafeInteger(palletCount)||palletCount<1||palletCount>1000))
   throw Error('Enter a valid whole number of pallets (1–1000).');
  return {id:d.id,recipient:d.recipient,job:d.job,attention:d.attention,street:d.street,
   city:d.city,state:d.state,zip:d.zip,notes:d.notes,voltecSalesOrder:d.voltecSalesOrder,
-  customerPo:d.customerPo,shippingMethod,palletCount,lines};
+  customerPo:d.customerPo,shippingMethod,palletCount,
+  shippingCartons:cartons.manual?cartons.cartons:null,lines};
 }
 function packingEditOpen(id){
  const o=(db.orders||[]).find(x=>x.id===(id||selectedOrder));
