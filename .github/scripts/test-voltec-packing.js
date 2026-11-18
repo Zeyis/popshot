@@ -3,7 +3,7 @@ const fs=require('node:fs');
 const PDFLib=require('pdf-lib');
 globalThis.PDFLib=PDFLib;
 const {packingShipmentDefault,packingShipmentSpec,packingShipmentLine,packingShipmentWeightTotal,
- packingShipmentGet,packingShipmentIsVoltecOrder,PACKING_PALLET_TARE_LB,packingShippingCalculation,packingAddPalletWeight,packingShippingCartonCount}=require('../../csg-inventory/packing-shipment.js');
+ packingShipmentGet,packingShipmentIsVoltecOrder,PACKING_PALLET_TARE_LB,packingShippingCalculation,packingAddPalletWeight,packingShippingCartonCount,packingManualTotalWeight}=require('../../csg-inventory/packing-shipment.js');
 const {voltecPackingNormalize,voltecPackingSummary,voltecPackingBuildPDF,
  voltecPackingHTML,voltecPackingShippingTotals}=require('../../csg-inventory/voltec-packing.js');
 (async()=>{
@@ -16,6 +16,12 @@ const {voltecPackingNormalize,voltecPackingSummary,voltecPackingBuildPDF,
  assert(edgeUI.includes('id="orderShippingMethod"'));
  assert(edgeUI.includes('id="orderPalletCount"'));
  assert(edgeUI.includes('id="orderShippingCartons"'));
+ assert(edgeUI.includes('id="orderManualTotalWeight"'));
+ assert.equal(packingManualTotalWeight('175'),175);
+ assert.equal(packingManualTotalWeight(''),null);
+ assert.equal(packingManualTotalWeight('0'),0);
+ assert.throws(()=>packingManualTotalWeight('-1'),/manual total/);
+ assert.throws(()=>packingManualTotalWeight('garbage'),/manual total/);
  assert.equal(packingShippingCartonCount([3,4],'').cartons,7);
  assert.equal(packingShippingCartonCount([3,4],'5').cartons,5);
  assert.equal(packingShippingCartonCount([3,4],'5').manual,true);
@@ -112,6 +118,18 @@ const {voltecPackingNormalize,voltecPackingSummary,voltecPackingBuildPDF,
  assert.equal(palletTotals.palletWeightLb,70);
  assert.equal(palletTotals.itemsWeightLb,147);
  assert.equal(palletTotals.grandTotalLb,217);
+ const manualOrder=voltecPackingNormalize({...raw,shippingMethod:'pallets',palletCount:2,
+  manualTotalWeightLb:200,lines:twoCases});
+ const manualTotals=voltecPackingShippingTotals(manualOrder,voltecPackingSummary(manualOrder.lines));
+ assert.equal(manualTotals.calculatedTotalLb,217);
+ assert.equal(manualTotals.grandTotalLb,200,'Manual final weight must not add 70 lb pallet tare twice');
+ assert.equal(manualTotals.manualTotalWeightLb,200);
+ const manualHtml=voltecPackingHTML({...raw,shippingMethod:'pallets',palletCount:2,
+  manualTotalWeightLb:200,lines:twoCases});
+ assert(manualHtml.includes('Manual FINAL shipping weight: 200.00 lb (includes pallets)'));
+ const clearManual=voltecPackingNormalize({...raw,shippingMethod:'pallets',palletCount:2,
+  manualTotalWeightLb:null,lines:twoCases});
+ assert.equal(voltecPackingShippingTotals(clearManual,voltecPackingSummary(clearManual.lines)).grandTotalLb,217);
  const repacked=voltecPackingNormalize({...raw,shippingMethod:'cartons',shippingCartons:5,lines:twoCases});
  const repackedSummary=voltecPackingSummary(repacked.lines);
  const repackedTotals=voltecPackingShippingTotals(repacked,repackedSummary);
