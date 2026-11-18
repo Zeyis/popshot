@@ -136,6 +136,11 @@
    <input id="orderPalletCount" type="number" min="1" max="1000" step="1" inputmode="numeric" placeholder="Enter pallet count" oninput="packingShipmentSummary()">
   </div>
  </div>
+ <div style="margin-top:12px;max-width:370px"><label for="orderShippingCartons">Actual shipping boxes / cartons</label>
+  <input id="orderShippingCartons" type="number" min="0" max="100000" step="1" inputmode="numeric"
+   placeholder="Auto: sum of cases pulled" oninput="packingShipmentSummary()">
+  <p class="sub" style="margin:5px 0 0">Editable: 7 cases can be double-packed into 5 boxes. Leave blank to use the case count automatically.</p>
+ </div>
  <div class="row" style="margin-top:10px;gap:9px;flex-wrap:wrap">
   <button type="button" id="addPalletWeightButton" class="slim" onclick="packingAddPalletWeight()">+ Add Pallet Weight (35 lb)</button>
   <span class="sub" style="margin:0">Each tap adds one pallet and 35 lb to the total.</span>
@@ -437,7 +442,7 @@ async function placeOrder(){
   const customer=titleCase($('orderCustomer').value),job=$('orderJob').value.trim();
   if(!customer)throw Error('Customer / company is required.');
   const hasVoltec=activeOrderDivision==='voltec';
-  const shipping=hasVoltec?packingShippingDetails():{shippingMethod:'cartons',palletCount:0};
+  const shipping=hasVoltec?packingShippingDetails():{shippingMethod:'cartons',palletCount:0,shippingCartons:null};
   const lines=Object.entries(cart).map(([key,qty])=>{
    const [division,id]=key.split(':'),item=inventoryOf(division).find(x=>x.id===Number(id)),ordered=Number(qty);
    if(!item||!Number.isSafeInteger(ordered)||ordered<1)throw Error('Check the selected quantities.');
@@ -450,13 +455,14 @@ async function placeOrder(){
   if(!confirm(hasVoltec
    ?'Create Voltec packing slip?\n\n'+ordered+' units ordered · '+shipped+' shipped · '+(ordered-shipped)+' backordered.'+
      '\nShipping: '+(shipping.shippingMethod==='pallets'?shipping.palletCount+' pallet(s), adding '+(shipping.palletCount*35)+' lb':'Cartons, no pallet weight')+
+     (shipping.shippingCartons!==null?' · '+shipping.shippingCartons+' actual shipping boxes':'')+
      '\n\nOnly shipped units will be deducted from inventory.'
    :'Create this order and deduct '+shipped+' units from shared inventory?'))return;
   const btn=$('placeOrderButton');btn.disabled=true;
   try{
    const existingIds=new Set((db.orders||[]).map(x=>x.id));
    const response=await change('order',{customer,job,
-    shippingMethod:shipping.shippingMethod,palletCount:shipping.palletCount,
+    shippingMethod:shipping.shippingMethod,palletCount:shipping.palletCount,shippingCartons:shipping.shippingCartons,
     voltecSalesOrder:hasVoltec?$('orderVoltecSales').value.trim():'',
     customerPo:hasVoltec?$('orderCustomerPO').value.trim():'',
     attention:titleCase($('orderAttention').value),street:titleCase($('orderStreet').value),
