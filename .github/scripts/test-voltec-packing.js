@@ -44,7 +44,8 @@ const {voltecPackingNormalize,voltecPackingSummary,voltecPackingBuildPDF,
  const partial=packingShipmentDefault({part:'04-00105',qty:3},'voltec',3);
  assert.equal(partial.casePack,6);
  assert.equal(partial.casesPulled,'','Partial cases are not full-package equivalents');
- assert.equal(partial.weightLb,'','Partial cases never silently guess weights');
+ assert.equal(partial.weightLb,9,'Verified pounds per case can be shown, but no shipment total without a case count');
+ assert.equal(packingShipmentWeightTotal(partial),null,'No line total is inferred for incomplete cases');
  const unknown=packingShipmentDefault({part:'NOT-VERIFIED',qty:100},'voltec',20);
  assert.equal(unknown.casePack,'');
  assert.equal(unknown.weightLb,'');
