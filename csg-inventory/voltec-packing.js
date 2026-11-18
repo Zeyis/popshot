@@ -125,7 +125,7 @@ async function voltecPackingBuildPDF(original,options={}){
   if(first){
    // Three deliberately aligned reference blocks instead of scattered labels.
    page.drawRectangle({x:left,y:640,width:528,height:57,color:C.light});
-   meta('CSG PO #',saved.number,left+12,681,148);
+   meta('CSG SO #',saved.number,left+12,681,148);
    meta('VOLTEC SALES ORDER #',saved.salesOrder,218,681,165);
    meta('CUSTOMER PO #',saved.customerPo,405,681,153);
    meta('ORDER DATE',formattedDate(saved.created),left,624,150);
@@ -146,7 +146,7 @@ async function voltecPackingBuildPDF(original,options={}){
    y=452;
   }else{
    put('PACKING SLIP / CONTINUED',left,680,11,true,C.black);
-   put('CSG PO: '+saved.number+'  |  VOLTEC SO: '+(saved.salesOrder||'-')+
+   put('CSG SO: '+saved.number+'  |  VOLTEC SO: '+(saved.salesOrder||'-')+
     '  |  CUSTOMER PO: '+(saved.customerPo||'-'),left,662,8,false,C.mid,523);
    y=641;
   }
@@ -243,7 +243,7 @@ function voltecPackingHTML(order){
   '<td>'+(l.casesPulled==null?'—':l.casesPulled)+'</td><td>'+(l.weightLb==null?'—':(l.weightEstimated?'~':'')+l.weightLb.toFixed(2))+(l.perCaseWeightLb===null?'':'<small>'+l.perCaseWeightLb.toFixed(2)+' lb/case</small>')+'</td></tr>').join('');
  return '<div class="voltec-fallback">'+
   '<div class="voltec-fallback-head"><div><strong>CAHABA SALES GROUP</strong><small>113 45th Place North · Birmingham, AL 35222</small></div><h2>PACKING SLIP</h2></div>'+
-  '<div class="voltec-fallback-meta"><div><small>CSG PO #</small><strong>'+esc(o.number)+'</strong></div>'+
+  '<div class="voltec-fallback-meta"><div><small>CSG SO #</small><strong>'+esc(o.number)+'</strong></div>'+
   '<div><small>VOLTEC SALES ORDER #</small><strong>'+esc(o.salesOrder||'-')+'</strong></div>'+
   '<div><small>CUSTOMER PO #</small><strong>'+esc(o.customerPo||'-')+'</strong></div></div>'+
   '<div class="voltec-fallback-address"><div><small>SHIP FROM</small><strong>Cahaba Sales Group</strong><p>113 45th Place North<br>Birmingham, AL 35222</p></div>'+
