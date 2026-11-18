@@ -2,7 +2,7 @@ const assert=require('node:assert/strict');
 const fs=require('node:fs');
 const PDFLib=require('pdf-lib');
 globalThis.PDFLib=PDFLib;
-const {packingShipmentDefault,packingShipmentSpec,packingShipmentLine,
+const {packingShipmentDefault,packingShipmentSpec,packingShipmentLine,packingShipmentWeightTotal,
  packingShipmentGet,packingShipmentIsVoltecOrder}=require('../../csg-inventory/packing-shipment.js');
 const {voltecPackingNormalize,voltecPackingSummary,voltecPackingBuildPDF,
  voltecPackingHTML}=require('../../csg-inventory/voltec-packing.js');
@@ -32,11 +32,14 @@ const {voltecPackingNormalize,voltecPackingSummary,voltecPackingBuildPDF,
  const known3=packingShipmentSpec({part:'08-00743'},'voltec');
  assert.equal(known3.casePack,4);
  assert.equal(known3.caseWeightLb,12);
+ assert.equal(packingShipmentWeightTotal({casesPulled:3,weightLb:25}),75);
+ assert.equal(packingShipmentWeightTotal({casesPulled:4,weightLb:18}),72);
+ assert.equal(packingShipmentWeightTotal({casesPulled:'',weightLb:25}),null);
  const d=packingShipmentDefault({part:'04-00102',qty:48},'voltec',12);
  assert.equal(d.shipped,12);
  assert.equal(d.casePack,6);
  assert.equal(d.casesPulled,2);
- assert.equal(d.weightLb,22);
+ assert.equal(d.weightLb,11,'Published 11 lb weight is per case, not combined total');
  assert.equal(d.weightEstimated,true,'Calculated gross case weights must be marked estimates');
  const partial=packingShipmentDefault({part:'04-00105',qty:3},'voltec',3);
  assert.equal(partial.casePack,6);
@@ -68,6 +71,22 @@ const {voltecPackingNormalize,voltecPackingSummary,voltecPackingBuildPDF,
  assert.equal(sum.knownCases,2);assert.equal(sum.casesKnown,1);
  assert.equal(sum.knownLb,22);assert.equal(sum.weightsKnown,1);
  assert.equal(sum.estimatedWeight,true);
+ // Entering 25 lb per case for 3 cases, and 18 lb per case for 4 cases,
+ // must produce 75 + 72 = 147 lb across two saved packing-slip lines.
+ const twoCases=[
+  {ordered:6,shipped:6,backordered:0,casesPulled:3,casePack:2,perCaseWeightLb:25,weightLb:75,weightEstimated:false},
+  {ordered:8,shipped:8,backordered:0,casesPulled:4,casePack:2,perCaseWeightLb:18,weightLb:72,weightEstimated:false}
+ ];
+ const caseSum=voltecPackingSummary(twoCases);
+ assert.equal(caseSum.knownCases,7);
+ assert.equal(caseSum.knownLb,147);
+ const fromForm=packingShipmentDefault({part:'08-00513',qty:60},'voltec',8);
+ assert.equal(fromForm.weightLb,'','Unsourced per-case weight stays blank');
+ const computed=voltecPackingNormalize({...raw,lines:twoCases.map((x,i)=>({...x,division:'voltec',part:'08-00'+i,qty:x.shipped,weightLb:999}))});
+ assert.equal(computed.lines[0].weightLb,75,'Per-case weight overrides stale line total');
+ assert.equal(computed.lines[1].weightLb,72);
+ const visible=voltecPackingHTML({...raw,lines:twoCases.map((x,i)=>({...x,division:'voltec',part:'08-00'+i,qty:x.shipped}))});
+ assert(visible.includes('147')||visible.includes('75.00'),'Print view includes calculated weights');
  const fallback=voltecPackingHTML(raw);
  assert(fallback.includes('VOLTEC SALES ORDER #'));
  assert(fallback.includes('CUSTOMER PO #'));
