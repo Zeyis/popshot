@@ -126,8 +126,7 @@ function packingShipmentLine(key,item,ordered){
  if(casePack!==null&&(!Number.isSafeInteger(casePack)||casePack<1))throw Error('Units per case must be a positive whole number for '+item.part+'.');
  if(perCaseWeightLb!==null&&(!Number.isFinite(perCaseWeightLb)||perCaseWeightLb<0))
   throw Error('Check weight per case for '+item.part+'.');
- if(perCaseWeightLb!==null&&casesPulled===null)
-  throw Error('Enter cases pulled to calculate the weight for '+item.part+'.');
+ // An unknown pulled-case count leaves total weight blank; do not block the order.
  const [division,id]=key.split(':');
  return {division,id:Number(id),qty:Number(ordered),shipped,casesPulled,casePack,
   perCaseWeightLb,weightLb,
