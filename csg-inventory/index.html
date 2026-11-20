@@ -154,7 +154,7 @@
  <p class="sub" style="margin:8px 0 0">Pallet shipping adds <strong>35 lb for each pallet</strong> to the item weight total. Carton shipping adds no pallet weight.</p>
 </div></div><div class="grid2"><div><label>Customer / company *</label><input id="orderCustomer" placeholder="Customer name"></div><div><label>Job / project</label><input id="orderJob" placeholder="Project name"></div><div><label>Attention / recipient</label><input id="orderAttention"></div><div><label>Street address</label><input id="orderStreet"></div><div><label>City</label><input id="orderCity"></div><div><label>State</label><input id="orderState" placeholder="AL" maxlength="30" autocapitalize="characters"></div><div><label>ZIP code</label><input id="orderZip" inputmode="numeric"></div></div><label>Notes</label><textarea id="orderNotes" rows="2"></textarea></div>
 <div class="card"><h2 style="margin-top:0;font-size:18px">Pull items</h2><input id="orderSearch" oninput="renderMatches()" placeholder="Search EiKO parts only" aria-label="Search parts for selected order type"><div id="orderMatches" class="results"></div>
-<div class="custom-part-action"><button type="button" class="slim" id="manualOrderOpenButton" onclick="manualOrderOpen()">+ Add Custom Part Manually</button>
+<div class="custom-part-action hidden" id="manualOrderControls"><button type="button" class="slim" id="manualOrderOpenButton" onclick="manualOrderOpen()">+ Add Custom Part Manually</button>
 <span class="sub">For SKUs or ordering codes not in the warehouse inventory list.</span></div>
 <div id="manualOrderPanel" class="card hidden" style="background:#fafafa;border:1px solid #c8c8c8;padding:15px;margin-top:12px">
  <h3 style="margin:0 0 8px;font-size:16px">Custom part / special-order SKU</h3>
@@ -358,6 +358,8 @@ function tab(name){
    ?'Create a Voltec-only packing slip with shipped, backordered, cases, weights and sales order references.'
    :'Create an EiKO-only order with the standard CSG packing list.';
   $('orderSearch').placeholder='Search '+brandLabel(targetOrderDivision)+' parts only';
+  $('manualOrderControls').classList.toggle('hidden',targetOrderDivision!=='voltec');
+  if(targetOrderDivision!=='voltec')$('manualOrderPanel').classList.add('hidden');
   $('placeOrderButton').textContent='Create '+brandLabel(targetOrderDivision)+' Order & Open Packing List';
   renderMatches();renderCart();
  }else if(name==='orders'){$('ordersSection').classList.remove('hidden');renderOrders()}
@@ -423,7 +425,9 @@ function renderMatches(){
  if(!q){$('orderMatches').innerHTML='<p class="sub">Search '+brandLabel(activeOrderDivision)+' part numbers or SKUs to add to this order.</p>';return}
  const found=inventoryOf(activeOrderDivision).map(x=>({...x,division:activeOrderDivision}))
  .filter(x=>(x.part+' '+(x.code||'')+' '+(x.desc||'')).toLowerCase().includes(q)).slice(0,15);
- $('orderMatches').innerHTML=found.map(x=>'<div class="result"><div><strong>'+E(x.part)+'</strong> <span class="tag">'+brandLabel(x.division)+'</span><div class="muted">'+x.qty+' available'+(x.code?' · '+E(x.code):'')+'</div></div><button class="slim" onclick="addToCart(\''+x.division+'\','+x.id+')">+ Add</button></div>').join('')||'<p class="sub">No matching parts. Use <strong>+ Add Custom Part Manually</strong> below to enter the part number and ordering code from the box.</p>';
+ $('orderMatches').innerHTML=found.map(x=>'<div class="result"><div><strong>'+E(x.part)+'</strong> <span class="tag">'+brandLabel(x.division)+'</span><div class="muted">'+x.qty+' available'+(x.code?' · '+E(x.code):'')+'</div></div><button class="slim" onclick="addToCart(\''+x.division+'\','+x.id+')">+ Add</button></div>').join('')||(activeOrderDivision==='voltec'
+  ?'<div class="sub">No Voltec match for <strong>'+E(q)+'</strong>. Tap <button type="button" class="slim" onclick="manualOrderOpen()">+ Add Custom Part Manually</button> to use the part number and ordering code from the box.</div>'
+  :'<p class="sub">No matching EiKO parts. Check the part number or ordering code.</p>');
 }
 function addToCart(division,id){
  if(division!==activeOrderDivision){alertMsg('Use Create '+brandLabel(division)+' Order for this item.',true);return}
