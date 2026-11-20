@@ -15,12 +15,15 @@ function voltecPackingNormalize(raw){
    ?Math.round(perCaseWeightLb*casesPulled*100)/100
    :(r.weightLb==null||r.weightLb==='')?null:Number(r.weightLb);
   return {index:index+1,part:String(r.part||''),code:String(r.code||''),
-   description:String(r.desc||''),division:r.division==='voltec'?'Voltec':'EiKO',
+   description:String(r.desc||''),division:r.division==='reliance'?'Reliance':r.division==='voltec'?'Voltec':'EiKO',
    ordered,shipped,backordered,casesPulled,casePack,perCaseWeightLb,weightLb,
    weightEstimated:r.weightEstimated===true};
  });
+ const supplier=raw.lines.some(line=>line.division==='reliance')?'Reliance':'Voltec';
  return {number:String(raw.number||''),created:String(raw.created||''),
-  salesOrder:String(raw.voltecSalesOrder||''),customerPo:String(raw.customerPo||''),
+  supplier,
+  salesOrder:String(supplier==='Reliance'?raw.relianceSalesOrder||'':raw.voltecSalesOrder||''),
+  customerPo:String(raw.customerPo||''),
   job:String(raw.job||''),recipient:String(raw.recipient||''),
   attention:String(raw.shipAttention||''),street:String(raw.shipStreet||''),
   city:String(raw.shipCity||''),state:String(raw.shipState||''),zip:String(raw.shipZip||''),
@@ -136,7 +139,7 @@ async function voltecPackingBuildPDF(original,options={}){
    // Three deliberately aligned reference blocks instead of scattered labels.
    page.drawRectangle({x:left,y:640,width:528,height:57,color:C.light});
    meta('CSG SO #',saved.number,left+12,681,148);
-   meta('VOLTEC SALES ORDER #',saved.salesOrder,218,681,165);
+   meta(saved.supplier.toUpperCase()+' SALES ORDER #',saved.salesOrder,218,681,165);
    meta('CUSTOMER PO #',saved.customerPo,405,681,153);
    meta('ORDER DATE',formattedDate(saved.created),left,624,150);
    meta('JOB / PROJECT',saved.job,253,624,310);
@@ -156,7 +159,7 @@ async function voltecPackingBuildPDF(original,options={}){
    y=452;
   }else{
    put('PACKING SLIP / CONTINUED',left,680,11,true,C.black);
-   put('CSG SO: '+saved.number+'  |  VOLTEC SO: '+(saved.salesOrder||'-')+
+   put('CSG SO: '+saved.number+'  |  '+saved.supplier.toUpperCase()+' SO: '+(saved.salesOrder||'-')+
     '  |  CUSTOMER PO: '+(saved.customerPo||'-'),left,662,8,false,C.mid,523);
    y=641;
   }
@@ -175,7 +178,7 @@ async function voltecPackingBuildPDF(original,options={}){
   const bottom=y-height;
   if(line.index%2===0)page.drawRectangle({x:left,y:bottom,width:right-left,height,color:C.light});
   put(String(line.index).padStart(2,'0')+' '+line.part,left+9,y-15,8.3,true,C.dark,204);
-  const ds=wrap((line.division==='Voltec'?'':'EiKO  |  ')+line.description,200,normal,7,2);
+  const ds=wrap((line.division==='EiKO'?'EiKO  |  ':'')+line.description,200,normal,7,2);
   ds.forEach((t,i)=>put(t,left+9,y-26-i*10,7,false,C.mid,202));
   if(line.casePack||line.perCaseWeightLb!==null)put(
    [line.casePack?'CASE PACK: '+line.casePack+' EA':'',line.perCaseWeightLb!==null?'WT/CASE: '+line.perCaseWeightLb.toFixed(2)+' LB':''].filter(Boolean).join('  |  '),
@@ -240,9 +243,9 @@ async function voltecPackingBuildPDF(original,options={}){
    {x:left,y:43,font:normal,size:7.2,color:C.mid});
   p.drawText(label,{x:right-bold.widthOfTextAtSize(label,8),y:43,font:bold,size:8,color:C.mid});
  }
- pdf.setTitle('Cahaba Sales Group - Voltec Packing Slip - '+saved.number);
+ pdf.setTitle('Cahaba Sales Group - '+saved.supplier+' Packing Slip - '+saved.number);
  pdf.setAuthor('Cahaba Sales Group');
- pdf.setSubject('Voltec sales order shipment packing slip');
+ pdf.setSubject(saved.supplier+' sales order shipment packing slip');
  return pdf.save();
 }
 function voltecPackingHTML(order){
@@ -256,7 +259,7 @@ function voltecPackingHTML(order){
  return '<div class="voltec-fallback">'+
   '<div class="voltec-fallback-head"><div><strong>CAHABA SALES GROUP</strong><small>113 45th Place North · Birmingham, AL 35222</small></div><h2>PACKING SLIP</h2></div>'+
   '<div class="voltec-fallback-meta"><div><small>CSG SO #</small><strong>'+esc(o.number)+'</strong></div>'+
-  '<div><small>VOLTEC SALES ORDER #</small><strong>'+esc(o.salesOrder||'-')+'</strong></div>'+
+  '<div><small>'+esc(o.supplier.toUpperCase())+' SALES ORDER #</small><strong>'+esc(o.salesOrder||'-')+'</strong></div>'+
   '<div><small>CUSTOMER PO #</small><strong>'+esc(o.customerPo||'-')+'</strong></div></div>'+
   '<div class="voltec-fallback-address"><div><small>SHIP FROM</small><strong>Cahaba Sales Group</strong><p>113 45th Place North<br>Birmingham, AL 35222</p></div>'+
   '<div><small>SHIP TO</small><strong>'+esc(o.recipient)+'</strong><p>'+[o.street,[o.city,o.state,o.zip].filter(Boolean).join(' ')].filter(Boolean).map(esc).join('<br>')+'</p></div></div>'+
