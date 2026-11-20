@@ -15,10 +15,12 @@ function packingEditEscape(v){
 function packingEditInitial(order){
  if(!order?.id||order.status==='cancelled')throw Error('Only confirmed packing lists can be edited.');
  return {
-  id:order.id,number:order.number,isVoltec:(order.lines||[]).some(l=>l.division==='voltec'),
+  id:order.id,number:order.number,
+  supplierDivision:order.lines?.[0]?.division||'eiko',
+  isVoltec:(order.lines||[]).some(l=>l.division==='voltec'||l.division==='reliance'),
   recipient:order.recipient||'',job:order.job||'',attention:order.shipAttention||'',
   street:order.shipStreet||'',city:order.shipCity||'',state:order.shipState||'',zip:order.shipZip||'',
-  notes:order.notes||'',voltecSalesOrder:order.voltecSalesOrder||'',customerPo:order.customerPo||'',
+  notes:order.notes||'',voltecSalesOrder:order.voltecSalesOrder||order.relianceSalesOrder||'',customerPo:order.customerPo||'',
   shippingMethod:order.shippingMethod==='pallets'?'pallets':'cartons',
   palletCount:order.shippingMethod==='pallets'?String(order.palletCount||''):'',
   shippingCartons:order.shippingCartons==null?'':String(order.shippingCartons),
@@ -104,8 +106,8 @@ function packingEditRender(){
   packingEditTextField('City','city',{optional:true})+
   packingEditTextField('State','state',{optional:true})+
   packingEditTextField('ZIP code','zip',{optional:true})+'</div>'+
-  (isV?'<h3>Voltec shipping details</h3><div class="packing-edit-grid">'+
-   packingEditTextField('Voltec Sales Order #','voltecSalesOrder',{optional:true})+
+  (isV?'<h3>'+(d.supplierDivision==='reliance'?'Reliance':'Voltec')+' shipping details</h3><div class="packing-edit-grid">'+
+   packingEditTextField((d.supplierDivision==='reliance'?'Reliance':'Voltec')+' Sales Order #','voltecSalesOrder',{optional:true})+
    packingEditTextField('Customer PO #','customerPo',{optional:true})+
    '<label>Actual shipping boxes / cartons <span class="muted">(editable)</span>'+
     '<input type="number" min="0" max="100000" step="1" inputmode="numeric" placeholder="Auto from cases pulled" value="'+
@@ -207,7 +209,9 @@ function packingEditPayload(d){
  if(shippingMethod==='pallets'&&(!Number.isSafeInteger(palletCount)||palletCount<1||palletCount>1000))
   throw Error('Enter a valid whole number of pallets (1–1000).');
  return {id:d.id,recipient:d.recipient,job:d.job,attention:d.attention,street:d.street,
-  city:d.city,state:d.state,zip:d.zip,notes:d.notes,voltecSalesOrder:d.voltecSalesOrder,
+  city:d.city,state:d.state,zip:d.zip,notes:d.notes,
+  voltecSalesOrder:d.supplierDivision==='voltec'?d.voltecSalesOrder:'',
+  relianceSalesOrder:d.supplierDivision==='reliance'?d.voltecSalesOrder:'',
   customerPo:d.customerPo,shippingMethod,palletCount,
   shippingCartons:cartons.manual?cartons.cartons:null,
   manualTotalWeightLb,lines};
