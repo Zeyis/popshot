@@ -24,7 +24,8 @@ function packingEditInitial(order){
   shippingCartons:order.shippingCartons==null?'':String(order.shippingCartons),
   manualTotalWeightLb:order.manualTotalWeightLb==null?'':String(order.manualTotalWeightLb),
   lines:(order.lines||[]).map(l=>({
-    division:l.division,id:l.id,part:l.part,code:l.code||'',
+    division:l.division,id:l.id,manual:l.manual===true,
+    part:l.part,code:l.code||'',desc:l.desc||'',
     ordered:String(l.ordered??l.qty),shipped:String(l.shipped??l.qty),
     casesPulled:l.casesPulled==null?'':String(l.casesPulled),
     casePack:l.casePack==null?'':String(l.casePack),
@@ -81,6 +82,10 @@ function packingEditRender(){
  const lines=d.lines.map((line,index)=>{
   return '<article class="packing-edit-row"><strong>'+packingEditEscape(line.part)+'</strong> <span class="muted">'+
    packingEditEscape(line.code)+'</span>'+
+   (line.manual?'<div class="packing-edit-grid" style="margin:12px 0">'+
+    '<label>Custom Part Number<input maxlength="120" value="'+packingEditEscape(line.part)+'" oninput="packingEditSetLine('+index+',\'part\',this.value)"></label>'+
+    '<label>Manual Ordering Code<input maxlength="120" value="'+packingEditEscape(line.code)+'" oninput="packingEditSetLine('+index+',\'code\',this.value)"></label>'+
+    '<label>Description<input maxlength="350" value="'+packingEditEscape(line.desc)+'" oninput="packingEditSetLine('+index+',\'desc\',this.value)"></label></div>':'')+
    '<div class="packing-edit-grid">'+
    packingEditNumberField(isV?'Ordered':'Shipped quantity',index,'ordered')+
    (isV?packingEditNumberField('Shipped',index,'shipped'):'')+
@@ -166,7 +171,7 @@ function packingEditSet(key,value){
 }
 function packingEditSetLine(index,key,value){
  if(!packingEditDraft||!packingEditDraft.lines[index]||
-  !['ordered','shipped','casesPulled','casePack','perCaseWeightLb'].includes(key))return;
+  !['ordered','shipped','casesPulled','casePack','perCaseWeightLb','part','code','desc'].includes(key))return;
  packingEditDraft.lines[index][key]=value;
  packingEditSummary();
 }
@@ -183,7 +188,12 @@ function packingEditPayload(d){
     throw Error('Check '+label+' for '+l.part+'.');
    return n;
   };
-  return {division:l.division,id:l.id,ordered,shipped,
+  if(l.manual&&(!l.part.trim()||!l.code.trim()||
+    l.part.trim().length>120||l.code.trim().length>120||l.desc.length>350))
+   throw Error('Custom part numbers and ordering codes cannot be blank or exceed field limits.');
+  return {division:l.division,id:l.id,manual:l.manual===true,
+   ...(l.manual?{part:l.part.trim(),code:l.code.trim(),desc:l.desc.trim()}:{}),
+   ordered,shipped,
    casesPulled:d.isVoltec?nullable(l.casesPulled,'cases pulled',true):null,
    casePack:d.isVoltec?nullable(l.casePack,'units per case',true):null,
    perCaseWeightLb:d.isVoltec?nullable(l.perCaseWeightLb,'weight per case',false):null,
@@ -226,7 +236,7 @@ async function packingEditSave(){
   if(!old)throw Error('This packing list was not found.');
   const adjusted=p.lines.filter(l=>{
    const previous=(old.lines||[]).find(a=>a.id===l.id&&a.division===l.division);
-   return previous&&Number(previous.shipped??previous.qty)!==Number(l.shipped);
+   return previous&&!previous.manual&&Number(previous.shipped??previous.qty)!==Number(l.shipped);
   });
   if(adjusted.length&&!confirm('The shipped quantities changed for '+adjusted.length+
     ' part(s). Saving will adjust shared inventory to match the corrected packing list. Continue?'))return;
