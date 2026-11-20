@@ -13,6 +13,7 @@ on:
       - '.github/scripts/test-voltec-packing.js'
       - '.github/scripts/test-packing-edit.js'
       - '.github/scripts/test-custom-voltec-order.js'
+      - '.github/scripts/test-reliance-inventory.js'
       - '.github/scripts/test-inventory-report.js'
   workflow_dispatch:
 permissions:
@@ -68,6 +69,7 @@ jobs:
           NODE_PATH=/tmp/csg-pdf-test/node_modules node .github/scripts/test-voltec-packing.js
           NODE_PATH=/tmp/csg-pdf-test/node_modules node .github/scripts/test-packing-edit.js
           NODE_PATH=/tmp/csg-pdf-test/node_modules node .github/scripts/test-custom-voltec-order.js
+          NODE_PATH=/tmp/csg-pdf-test/node_modules node .github/scripts/test-reliance-inventory.js
       - name: Smoke test BJ ordering and official EiKO product search
         run: node .github/scripts/test-bj-services.js
       - name: Configure Pages
