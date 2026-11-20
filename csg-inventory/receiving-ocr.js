@@ -74,8 +74,9 @@ function parseReceivingText(raw){
  const text=String(raw||''),lines=text.split(/\r?\n/).map(x=>x.trim()).filter(Boolean);
  const isVoltec=/\b(?:FLEXWELT|FLEXWELL|VOLTEC|TASCO)\b/i.test(text);
  const isEiKO=/\bEIKO\b/i.test(text);
- const supplier=isVoltec?'Flexwelt / Voltec':isEiKO?'EiKO':'';
- const division=isEiKO&&!isVoltec?'eiko':'voltec';
+ const isReliance=/\bRELIANCE\b|\bREL-[A-Z0-9-]{3,}/i.test(text);
+ const supplier=isReliance?'Reliance':isVoltec?'Flexwelt / Voltec':isEiKO?'EiKO':'';
+ const division=isReliance?'reliance':isEiKO&&!isVoltec?'eiko':'voltec';
  const headerRef=text.match(/\b(?:shipper\s*(?:number|no\.?|#)|packing\s*list\s*(?:number|no\.?|#)|delivery\s*(?:number|no\.?|#)|invoice\s*(?:number|no\.?|#))\s*[:#-]?\s*([A-Z0-9-]{4,})/i);
  const fallbackRef=text.match(/\bP\.?\s*O\.?\s*(?:number|no\.?|#)\s*[:#-]?\s*([A-Z0-9-]{3,})/i);
  const date=text.match(/\b(?:order\s*date|ship\s*date|date)\s*[:#-]?\s*(\d{1,2}\/\d{1,2}\/\d{4})/i);
