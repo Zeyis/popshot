@@ -81,7 +81,7 @@ const {packingEditInitial,packingEditPayload,packingEditComputed}=require('../..
  assert(!csgSupplierReportCSV(report).includes('VOLTEC-ONLY'));
  const reportPdf=await PDFLib.PDFDocument.load(await csgSupplierReportPDF(report,{pdfLib:PDFLib}));
  assert.equal(reportPdf.getPages()[0].getHeight(),792);
- assert.equal(reportPdf.getTitle(),'CSG - Reliance Inventory Report');
+ assert.equal(reportPdf.getTitle(),'Cahaba Sales Group - Reliance Inventory Report');
  const mock={manual:true,id:'manual-abc12345',part:'REL-SPECIAL-CUSTOM',code:'C-110',desc:'Custom',qty:4};
  packingShipmentGet('reliance:manual-abc12345',mock,4);
  const l=packingShipmentLine('reliance:manual-abc12345',mock,4);
