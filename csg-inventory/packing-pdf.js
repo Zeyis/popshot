@@ -184,7 +184,7 @@ async function packingLoadLogo(){
 }
 async function packingGenerateBlob(order){
  const [lib,logo]=await Promise.all([bjPdfLoadLibrary(),packingLoadLogo().catch(()=>null)]);
- const hasVoltec=(order.lines||[]).some(line=>line.division==='voltec');
+ const hasVoltec=(order.lines||[]).some(line=>line.division==='voltec'||line.division==='reliance');
  const bytes=hasVoltec
   ?await voltecPackingBuildPDF(order,{pdfLib:lib,logoBytes:logo})
   :await packingBuildPDF(order,{pdfLib:lib,logoBytes:logo});
