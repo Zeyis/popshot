@@ -47,11 +47,11 @@ const {voltecPackingNormalize,voltecPackingSummary,voltecPackingBuildPDF,
  assert.equal(packingShippingCalculation('cartons',0,147).grandWeightLb,147);
  assert.equal(packingShippingCalculation('pallets',2,null).grandWeightLb,null);
  assert.throws(()=>packingShippingCalculation('pallets',1.5,147),/valid whole number/);
- assert(edgeUI.includes("if(division==='voltec')return packingShipmentMarkup(key,x,qty)"));
- assert(edgeUI.includes("if((o.lines||[]).some(l=>l.division==='voltec'))"));
+ assert(edgeUI.includes("if(division!=='eiko')return packingShipmentMarkup(key,x,qty)"));
+ assert(edgeUI.includes("if((o.lines||[]).some(l=>l.division==='voltec'||l.division==='reliance'))"));
  assert(edgeUI.includes('voltecPackingHTML(o)'));
  assert(edgeUI.includes('src="voltec-packing.js"'));
- assert(packingCode.includes("const hasVoltec=(order.lines||[]).some(line=>line.division==='voltec')"));
+ assert(packingCode.includes("const hasVoltec=(order.lines||[]).some(line=>line.division==='voltec'||line.division==='reliance')"));
  assert(packingCode.includes("await voltecPackingBuildPDF(order"));
  assert(packingCode.includes("'PREPARED BY'"),'Unchanged EiKO packing slip remains available');
  assert.equal(packingShipmentIsVoltecOrder({'eiko:6':1}),false);
