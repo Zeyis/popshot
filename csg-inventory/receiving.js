@@ -6,7 +6,10 @@ function receiveMessage(msg,bad=false){
  const el=$('receivingStatus');if(!el)return;
  el.textContent=msg;el.className='alert'+(bad?' error':'');el.classList.remove('hidden');
 }
-function receivingDefaultDivision(){return $('receiveDivision')?.value==='eiko'?'eiko':'voltec'}
+function receivingDefaultDivision(){
+ const v=$('receiveDivision')?.value;
+ return v==='eiko'||v==='reliance'?v:'voltec';
+}
 function receivingIsPdf(file){return file?.type==='application/pdf'||(file?.name||'').toLowerCase().endsWith('.pdf')}
 function receivingShowPreview(file){
  if(receivingObjectURL){URL.revokeObjectURL(receivingObjectURL)}
@@ -68,7 +71,7 @@ function receivingExisting(line){
  return inventoryOf(line.division).find(x=>normal(x.part)===normal(line.part)||(line.code&&x.code&&normal(x.code)===normal(line.code)));
 }
 function receivingValid(line){
- return !!String(line.part||'').trim()&&['voltec','eiko'].includes(line.division)&&['units','cases'].includes(line.mode)
+ return !!String(line.part||'').trim()&&['voltec','eiko','reliance'].includes(line.division)&&['units','cases'].includes(line.mode)
  && Number.isSafeInteger(Number(line.shipped))&&Number(line.shipped)>0&&Number.isSafeInteger(Number(line.pack))&&Number(line.pack)>0;
 }
 function receivingUnits(line){return receivingValid(line)?Number(line.shipped)*(line.mode==='cases'?Number(line.pack):1):0}
@@ -78,7 +81,7 @@ function receivingRenderRows(){
   const existing=receivingExisting(r);
   return '<div class="card"><div class="section-head"><div><strong>Item '+(i+1)+'</strong> <span class="tag">'+(existing?'In inventory':'New SKU — creates on approval')+'</span></div><button class="slim danger" onclick="receivingRemove('+i+')">Remove</button></div>'
   +'<div class="grid2"><div><label>Item # / SKU</label><input value="'+E(r.part)+'" onchange="receivingChange('+i+',\'part\',this.value);receivingRenderRows()" placeholder="08-00743"></div>'
-  +'<div><label>Inventory brand</label><select onchange="receivingChange('+i+',\'division\',this.value);receivingRenderRows()"><option value="voltec"'+(r.division==='voltec'?' selected':'')+'>Voltec</option><option value="eiko"'+(r.division==='eiko'?' selected':'')+'>EiKO</option></select></div></div>'
+  +'<div><label>Inventory brand</label><select onchange="receivingChange('+i+',\'division\',this.value);receivingRenderRows()"><option value="voltec"'+(r.division==='voltec'?' selected':'')+'>Voltec</option><option value="reliance"'+(r.division==='reliance'?' selected':'')+'>Reliance</option><option value="eiko"'+(r.division==='eiko'?' selected':'')+'>EiKO</option></select></div></div>'
   +'<label>Supplier description</label><input value="'+E(r.description)+'" onchange="receivingChange('+i+',\'description\',this.value)" placeholder="Description">'
   +'<div class="grid3"><div><label>Actually shipped</label><input type="number" min="1" step="1" inputmode="numeric" value="'+E(r.shipped)+'" oninput="receivingChange('+i+',\'shipped\',this.value)" placeholder="Verify on paper"></div>'
   +'<div><label>Shipped as</label><select onchange="receivingChange('+i+',\'mode\',this.value)"><option value="cases"'+(r.mode==='cases'?' selected':'')+'>Cases / cartons</option><option value="units"'+(r.mode==='units'?' selected':'')+'>Individual units</option></select></div>'
@@ -163,7 +166,7 @@ function receivingHistory(){
  host.innerHTML=(db.receipts||[]).slice(0,70).map(r=>'<div class="card"><div class="section-head"><div><strong>'+E(r.supplier)+' · '+E(r.reference)+'</strong><p class="muted" style="margin:4px 0">'+dateTime(r.receivedAt)+' · '+E(r.receivedBy)+' · '+E(r.fileName||'Manual')+'</p></div><span class="badge'+(r.status==='reversed'?' cancelled':'')+'">'+(r.status==='reversed'?'Reversed':'Received')+'</span></div>'
  +'<p><strong>'+Number(r.totalUnits).toLocaleString()+' units</strong> · '+r.lines.length+' lines</p>'
  +(r.document?.path?'<div class="row" style="gap:8px;flex-wrap:wrap;margin:9px 0"><span class="tag">Original document saved</span><button class="slim" onclick="receivingOpenDocument(\''+E(r.id)+'\')">View saved photo / PDF</button><button class="slim" onclick="receivingOpenDocument(\''+E(r.id)+'\',true)">Download original</button></div>':'<p class="muted" style="font-size:12px">No original photo/PDF archived with this receipt.</p>')
- +'<details><summary class="muted" style="cursor:pointer">View received items</summary><div style="margin:10px 0">'+r.lines.map(l=>'<p class="muted">'+E(l.division==='voltec'?'Voltec':'EiKO')+' · '+E(l.part)+' · '+Number(l.qty)+' units ('+Number(l.shipped)+' '+E(l.mode)+(l.mode==='cases'?' × '+l.pack+'/case':'')+')</p>').join('')+'</div></details>'
+ +'<details><summary class="muted" style="cursor:pointer">View received items</summary><div style="margin:10px 0">'+r.lines.map(l=>'<p class="muted">'+E(l.division==='reliance'?'Reliance':l.division==='voltec'?'Voltec':'EiKO')+' · '+E(l.part)+' · '+Number(l.qty)+' units ('+Number(l.shipped)+' '+E(l.mode)+(l.mode==='cases'?' × '+l.pack+'/case':'')+')</p>').join('')+'</div></details>'
  +(r.status==='posted'?'<button class="slim danger" onclick="receivingReverse(\''+E(r.id)+'\')">Reverse this receipt</button>':'')+'</div>').join('')||'<div class="card">No received packing lists yet.</div>';
 }
 async function receivingReverse(id){
