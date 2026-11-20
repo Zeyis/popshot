@@ -7,6 +7,9 @@ assert(html.includes('the original photo or PDF is saved securely with the recei
 assert(html.includes('Receiving History'));
 assert(script.includes("action:'view_document'"));
 assert(script.includes("form.append('document',documentFile,documentFile.name)"));
+assert(html.includes('<option value="reliance">Reliance</option>'),'Reliance is in receiving supplier selector');
+assert(script.includes("['voltec','eiko','reliance']"),'Reliance is allowed in receiving line validation');
+assert(script.includes("l.division==='reliance'?'Reliance'"),'Reliance receipts display the correct supplier');
 const calls=[],elements={receivingHistory:{innerHTML:''}};
 const context={
  token:'authenticated-test-session-01234567890123456789',stateVersion:12,
@@ -41,6 +44,10 @@ vm.runInContext(script,context);
  context.receivingHistory();
  assert(elements.receivingHistory.innerHTML.includes('View saved photo / PDF'));
  assert(elements.receivingHistory.innerHTML.includes('Download original'));
+ context.db.receipts[0].lines=[{division:'reliance',part:'REL-306CRK',qty:2,shipped:2,mode:'units',pack:1}];
+ context.receivingHistory();
+ assert(elements.receivingHistory.innerHTML.includes('Reliance'));
+ assert(elements.receivingHistory.innerHTML.includes('REL-306CRK'));
  context.db.receipts[0].document=null;context.receivingHistory();
  assert(elements.receivingHistory.innerHTML.includes('No original photo/PDF archived'));
  assert(!elements.receivingHistory.innerHTML.includes('View saved photo / PDF'));
