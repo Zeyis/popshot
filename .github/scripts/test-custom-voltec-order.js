@@ -20,7 +20,7 @@ assert(editorCode.includes('manual:l.manual===true'),'Saved line remains custom'
 assert(editorCode.includes('Manual Ordering Code'),'Manual order code can be edited later');
 assert(pdfCode.includes("put(line.code||'-'"),'PDF includes ordering code');
 const fields={
- manualPart:{value:''},manualCode:{value:''},manualDescription:{value:''},manualQuantity:{value:'1'},
+ manualPart:{value:'',focus(){}},manualCode:{value:''},manualDescription:{value:''},manualQuantity:{value:'1'},
  orderSearch:{value:'LHS-PS320-8FCCT-HD1M-EB40H'},
  manualOrderPanel:{classList:{add(){},remove(){}}}
 };
