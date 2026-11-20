@@ -21,6 +21,7 @@ function manualOrderClear(){
  }
 }
 function manualOrderOpen(){
+ if(activeOrderDivision!=='voltec')return;
  const panel=document.getElementById('manualOrderPanel');
  if(!panel)return;
  panel.classList.remove('hidden');
@@ -31,7 +32,7 @@ function manualOrderOpen(){
  part?.focus();
 }
 function manualOrderAdd(){
- if(!['voltec','eiko'].includes(activeOrderDivision))return;
+ if(activeOrderDivision!=='voltec')return;
  const part=(document.getElementById('manualPart')?.value||'').trim().toUpperCase();
  const code=(document.getElementById('manualCode')?.value||'').trim().toUpperCase();
  const desc=(document.getElementById('manualDescription')?.value||'').trim();
