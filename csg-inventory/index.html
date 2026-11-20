@@ -84,8 +84,10 @@
 <nav class="tabs" aria-label="Warehouse sections">
 <button id="nav-eiko" class="active" onclick="tab('eiko')">EiKO Inventory</button>
 <button id="nav-voltec" onclick="tab('voltec')">Voltec Inventory</button>
+<button id="nav-reliance" onclick="tab('reliance')">Reliance Inventory</button>
 <button id="nav-order-eiko" onclick="tab('order-eiko')">Create EiKO Order</button>
 <button id="nav-order-voltec" onclick="tab('order-voltec')">Create Voltec Order</button>
+<button id="nav-order-reliance" onclick="tab('order-reliance')">Create Reliance Order</button>
 <button id="nav-orders" onclick="tab('orders')">Orders</button>
 <button id="nav-bj" onclick="tab('bj')">BJ Mode <span id="bjNavBadge" class="bj-badge hidden">0</span></button>
 <button id="nav-receiving" onclick="tab('receiving')">Packing List Receiving</button>
@@ -105,6 +107,7 @@
 <div class="toolbar"><input id="inventorySearch" oninput="renderInventory()" placeholder="Search part or ordering code" aria-label="Search inventory"><button class="primary" onclick="openPart(0)">+ Add Part</button></div>
 <div class="card table-scroll"><table><thead><tr><th>Part / SKU</th><th id="codeHeader">EiKO ordering code</th><th>Available</th><th></th></tr></thead><tbody id="inventoryRows"></tbody></table></div>
 <p id="voltecSource" class="sub hidden">Voltec started from the six items in your October 20 Odoo screenshot. These quantities can be maintained here, but do not automatically sync back to Odoo.</p>
+<p id="relianceSource" class="sub hidden">Reliance started from your November 20, 2026 Odoo product screenshot (23 SKUs). Counts are editable here and do not automatically sync to Odoo.</p>
 </section>
 <section id="partSection" class="hidden"><div class="section-head"><h1 id="partHeading">Edit part</h1><button onclick="tab(activeDivision)">← Back to inventory</button></div><div class="card" style="max-width:690px"><input type="hidden" id="editId">
 <label for="editPart">Part number / SKU</label>
@@ -122,9 +125,9 @@
 <div class="row" style="margin-top:17px"><button class="primary" onclick="savePart()">Save to shared inventory</button><button onclick="tab(activeDivision)">Cancel</button></div></div></section>
 <section id="orderSection" class="hidden"><div class="section-head"><div><h1 id="createOrderHeading">Create EiKO Order</h1><p class="sub" id="createOrderSubtitle">Create an EiKO-only order using EiKO stock and its standard packing list.</p></div></div>
 <div class="card"><h2 style="margin-top:0;font-size:18px">Ship-to information</h2>
-<div id="voltecOrderReferences" class="hidden"><h3 style="font-size:14px;margin:2px 0 9px">Voltec shipping references</h3>
-<div class="grid2"><div><label>Voltec Sales Order #</label><input id="orderVoltecSales" maxlength="100" placeholder="Voltec SO # (optional)"></div><div><label>Customer PO #</label><input id="orderCustomerPO" maxlength="100" placeholder="Customer purchase order # (optional)"></div></div>
-<p class="sub">These references appear on Voltec packing slips only.</p>
+<div id="voltecOrderReferences" class="hidden"><h3 id="supplierShippingHeading" style="font-size:14px;margin:2px 0 9px">Voltec shipping references</h3>
+<div class="grid2"><div><label id="orderSupplierSalesLabel">Voltec Sales Order #</label><input id="orderVoltecSales" maxlength="100" placeholder="Voltec SO # (optional)"></div><div><label>Customer PO #</label><input id="orderCustomerPO" maxlength="100" placeholder="Customer purchase order # (optional)"></div></div>
+<p class="sub">These references appear on the selected supplier's packing slip only.</p>
 <div class="voltec-shipping-method">
  <h3 style="font-size:14px;margin:13px 0 7px">How is this order shipping?</h3>
  <div class="grid2">
@@ -261,9 +264,9 @@ const dateTime=x=>{try{return new Date(x).toLocaleString()}catch{return ''}};
 const keyFor=(division,id)=>division+':'+id;
 let token=localStorage.getItem('csg_token')||sessionStorage.getItem('csg_token')||'';
 let staff='',selectedStaff='',newStaff=false,activeDivision='eiko',activeTab='eiko',activeOrderDivision='eiko',editingDivision='eiko',stateVersion=0;
-let db={items:[],voltec:[],orders:[]},activities=[],cart={},liveBusy=false,selectedOrder=null;
-function inventoryOf(division){return division==='voltec'?(db.voltec||[]):(db.items||[])}
-function brandLabel(division){return division==='voltec'?'Voltec':'EiKO'}
+let db={items:[],voltec:[],reliance:[],orders:[]},activities=[],cart={},liveBusy=false,selectedOrder=null;
+function inventoryOf(division){return division==='reliance'?(db.reliance||[]):division==='voltec'?(db.voltec||[]):(db.items||[])}
+function brandLabel(division){return division==='reliance'?'Reliance':division==='voltec'?'Voltec':'EiKO'}
 function alertMsg(msg,bad=false,target='flash'){let el=$(target);el.textContent=msg;el.className='alert'+(bad?' error':'');el.classList.remove('hidden')}
 function clearMsg(target='flash'){$(target).classList.add('hidden')}
 async function request(action,extra={}){
@@ -285,7 +288,7 @@ function chooseStaff(name,registered){
  $('pinHeading').textContent=newStaff?'Set up '+name+'’s PIN':'Welcome, '+name;
  $('pinHelp').textContent=newStaff?'Create a 4-digit PIN for your name.':'Enter your saved PIN. You will not need it again when switching tabs.';
  $('pinConfirmRow').classList.toggle('hidden',!newStaff);
- $('signinButton').textContent=newStaff?'Create PIN & open inventory':'Unlock EiKO + Voltec';
+ $('signinButton').textContent=newStaff?'Create PIN & open inventory':'Unlock EiKO + Voltec + Reliance';
  $('userPin').value='';$('userPinConfirm').value='';
  $('userPin').focus();
 }
@@ -334,7 +337,7 @@ async function signout(){
 function tab(name){
  // Keep old deep links working, but show distinct ordering workflows.
  if(name==='order')name='order-eiko';
- const targetOrderDivision=name==='order-eiko'?'eiko':name==='order-voltec'?'voltec':null;
+ const targetOrderDivision=name==='order-eiko'?'eiko':name==='order-voltec'?'voltec':name==='order-reliance'?'reliance':null;
  if(targetOrderDivision&&targetOrderDivision!==activeOrderDivision){
   if(Object.keys(cart).length&&!confirm('Switch to '+brandLabel(targetOrderDivision)+' ordering? Unsaved items on the other order will be cleared.'))return;
   cart={};
@@ -348,18 +351,21 @@ function tab(name){
  }
  activeTab=name;
  for(const id of ['inventorySection','partSection','orderSection','ordersSection','receivingSection','bjSection','bjPrintSection','activitySection','packingSection'])$(id).classList.add('hidden');
- if(name==='eiko'||name==='voltec'){
+ if(name==='eiko'||name==='voltec'||name==='reliance'){
   activeDivision=name;$('inventorySection').classList.remove('hidden');renderInventory();
  }else if(name==='part'){$('partSection').classList.remove('hidden')}
  else if(targetOrderDivision){
   $('orderSection').classList.remove('hidden');
   $('createOrderHeading').textContent='Create '+brandLabel(targetOrderDivision)+' Order';
-  $('createOrderSubtitle').textContent=targetOrderDivision==='voltec'
-   ?'Create a Voltec-only packing slip with shipped, backordered, cases, weights and sales order references.'
-   :'Create an EiKO-only order with the standard CSG packing list.';
+  $('createOrderSubtitle').textContent=targetOrderDivision==='eiko'
+   ?'Create an EiKO-only order with the standard CSG packing list.'
+   :'Create a '+brandLabel(targetOrderDivision)+'-only packing slip with shipped, backordered, cases, weights and sales order references.';
+  $('supplierShippingHeading').textContent=brandLabel(targetOrderDivision)+' shipping references';
+  $('orderSupplierSalesLabel').textContent=brandLabel(targetOrderDivision)+' Sales Order #';
+  $('orderVoltecSales').placeholder=brandLabel(targetOrderDivision)+' SO # (optional)';
   $('orderSearch').placeholder='Search '+brandLabel(targetOrderDivision)+' parts only';
-  $('manualOrderControls').classList.toggle('hidden',targetOrderDivision!=='voltec');
-  if(targetOrderDivision!=='voltec')$('manualOrderPanel').classList.add('hidden');
+  $('manualOrderControls').classList.toggle('hidden',targetOrderDivision==='eiko');
+  if(targetOrderDivision==='eiko')$('manualOrderPanel').classList.add('hidden');
   $('placeOrderButton').textContent='Create '+brandLabel(targetOrderDivision)+' Order & Open Packing List';
   renderMatches();renderCart();
  }else if(name==='orders'){$('ordersSection').classList.remove('hidden');renderOrders()}
@@ -368,17 +374,17 @@ function tab(name){
  else if(name==='bjprint'){$('bjPrintSection').classList.remove('hidden')}
  else if(name==='activity'){$('activitySection').classList.remove('hidden');renderActivity()}
  else if(name==='packing'){$('packingSection').classList.remove('hidden')}
- for(const navName of ['eiko','voltec','order-eiko','order-voltec','orders','receiving','bj','activity']){
+ for(const navName of ['eiko','voltec','reliance','order-eiko','order-voltec','order-reliance','orders','receiving','bj','activity']){
   $('nav-'+navName).classList.toggle('active',navName===activeTab);
  }
  clearMsg();
  window.scrollTo({top:0,behavior:'instant'});
 }
 function renderAll(){
- if(activeTab==='eiko'||activeTab==='voltec')renderInventory();
+ if(activeTab==='eiko'||activeTab==='voltec'||activeTab==='reliance')renderInventory();
  if(activeTab==='orders')renderOrders();
  if(activeTab==='activity')renderActivity();
- if(activeTab==='order-eiko'||activeTab==='order-voltec'){renderMatches();renderCart()}
+ if(activeTab==='order-eiko'||activeTab==='order-voltec'||activeTab==='order-reliance'){renderMatches();renderCart()}
  if(activeTab==='packing'&&selectedOrder)renderPacking(selectedOrder);
  if(activeTab==='receiving')renderReceiving();
  if(activeTab==='bj')bjRender();
@@ -386,14 +392,16 @@ function renderAll(){
 function renderInventory(){
  const division=activeDivision,rows=inventoryOf(division),q=$('inventorySearch').value.trim().toLowerCase();
  $('inventoryTitle').textContent=brandLabel(division)+' Inventory';
- $('inventorySubtitle').textContent=division==='voltec'?'Separate Voltec stock. Available to all signed-in employees.':'Shared EiKO stock. Edits replace the old counts, not add to them.';
- $('codeHeader').textContent=division==='voltec'?'Brand':'EiKO ordering code';
+ $('inventorySubtitle').textContent=division==='voltec'?'Separate Voltec stock. Available to all signed-in employees.':
+  division==='reliance'?'Reliance stock imported from the Odoo screenshot; counts are maintained separately in this app.':'Shared EiKO stock. Edits replace the old counts, not add to them.';
+ $('codeHeader').textContent=division==='eiko'?'EiKO ordering code':'Brand / ordering code';
  $('voltecSource').classList.toggle('hidden',division!=='voltec');
+ $('relianceSource').classList.toggle('hidden',division!=='reliance');
  $('totalParts').textContent=rows.length;
  $('totalUnits').textContent=rows.reduce((n,r)=>n+(Number(r.qty)||0),0).toLocaleString();
  $('lowParts').textContent=rows.filter(r=>Number(r.qty)<=Number(r.min||0)).length;
  $('inventoryRows').innerHTML=rows.filter(x=>(x.part+' '+(x.code||'')+' '+(x.desc||'')).toLowerCase().includes(q)).sort((a,b)=>String(a.part).localeCompare(String(b.part))).map(x=>
- '<tr><td><strong>'+E(x.part)+'</strong>'+(x.desc?'<div class="muted">'+E(x.desc)+'</div>':'')+'</td><td>'+(division==='voltec'?'<span class="tag">VOLTEC</span>':E(x.code||'—'))+'</td><td><span class="num">'+Number(x.qty).toLocaleString()+'</span>'+(x.qty<=x.min?'<div class="muted">Low stock</div>':'')+'</td><td><button class="slim" onclick="openPart('+Number(x.id)+')">Edit / Count</button></td></tr>').join('')||'<tr><td colspan="4">No matching parts.</td></tr>';
+ '<tr><td><strong>'+E(x.part)+'</strong>'+(x.desc?'<div class="muted">'+E(x.desc)+'</div>':'')+'</td><td>'+(division==='voltec'||division==='reliance'?'<span class="tag">'+brandLabel(division).toUpperCase()+'</span>'+(x.code?' · '+E(x.code):''):E(x.code||'—'))+'</td><td><span class="num">'+Number(x.qty).toLocaleString()+'</span>'+(x.qty<=x.min?'<div class="muted">Low stock</div>':'')+'</td><td><button class="slim" onclick="openPart('+Number(x.id)+')">Edit / Count</button></td></tr>').join('')||'<tr><td colspan="4">No matching parts.</td></tr>';
 }
 function openPart(id){
  editingDivision=activeDivision;
@@ -402,7 +410,7 @@ function openPart(id){
  $('editId').value=x.id;$('editPart').value=x.part;$('editCode').value=x.code||'';
  $('editQty').value=x.qty;$('editMin').value=x.min||0;$('editDesc').value=x.desc||'';
  $('codeField').classList.toggle('hidden',editingDivision==='voltec');
- $('editPart').placeholder=editingDivision==='eiko'?'Start typing an EiKO part number':'Enter a Voltec part number';
+ $('editPart').placeholder=editingDivision==='eiko'?'Start typing an EiKO part number':'Enter a '+brandLabel(editingDivision)+' part number';
  tab('part');
  window.eikoLookupReset?.();
 }
@@ -435,7 +443,7 @@ function addToCart(division,id){
  if(item.qty<1){alertMsg('No stock available to ship for '+item.part,true);return}
  if((cart[key]||0)>=item.qty){alertMsg('Not enough stock available for '+item.part,true);return}
  cart[key]=(cart[key]||0)+1;
- if(division==='voltec')packingShipmentOrderedChanged(key,item,cart[key]);
+ if(division!=='eiko')packingShipmentOrderedChanged(key,item,cart[key]);
  renderCart();
 }
 function setCartQty(key,value){
@@ -443,24 +451,24 @@ function setCartQty(key,value){
  if(!Number.isSafeInteger(n)||n<=0){delete cart[key];delete packingShipmentDraft[key];renderCart();return}
  const [division,id]=key.split(':'),item=manualOrderGet(key)||inventoryOf(division).find(x=>x.id===Number(id));
  cart[key]=n;
- if(division==='voltec'&&item)packingShipmentOrderedChanged(key,item,n);
+ if(division!=='eiko'&&item)packingShipmentOrderedChanged(key,item,n);
  renderCart();
 }
 function removeCart(key){delete cart[key];delete packingShipmentDraft[key];delete manualOrderItems[key];renderCart()}
 function renderCart(){
- const hasVoltec=activeOrderDivision==='voltec';
- $('voltecOrderReferences').classList.toggle('hidden',!hasVoltec);
- $('voltecShipmentHelp').classList.toggle('hidden',!hasVoltec);
+ const hasVoltec=activeOrderDivision==='voltec',hasReliance=activeOrderDivision==='reliance',hasShipping=hasVoltec||hasReliance;
+ $('voltecOrderReferences').classList.toggle('hidden',!hasShipping);
+ $('voltecShipmentHelp').classList.toggle('hidden',!hasShipping);
  let total=0;
  $('cartRows').innerHTML=Object.keys(cart).map(key=>{
   const [division,id]=key.split(':'),x=manualOrderGet(key)||inventoryOf(division).find(x=>x.id===Number(id)),qty=cart[key];
   if(!x)return '';
   total+=Number(qty)||0;
-  if(division==='voltec')return packingShipmentMarkup(key,x,qty);
+  if(division!=='eiko')return packingShipmentMarkup(key,x,qty);
   return '<div class="cart-row"><div class="cart-details"><strong>'+E(x.part)+'</strong><span class="tag" style="margin-left:8px">EiKO</span><div class="muted">'+(x.manual?'Custom · packing list only · '+E(x.code):x.qty+' available')+'</div></div><input type="number" min="1" max="'+x.qty+'" inputmode="numeric" value="'+qty+'" aria-label="Quantity" onchange="setCartQty(\''+E(key)+'\',this.value)"><button class="slim danger" onclick="removeCart(\''+E(key)+'\')">×</button></div>';
  }).join('')||'<p class="sub">No items selected.</p>';
  $('cartTotal').textContent=total.toLocaleString()+' units';
- if(hasVoltec)packingShipmentSummary();
+ if(hasShipping)packingShipmentSummary();
 }
 async function placeOrder(){
  try{
@@ -469,20 +477,20 @@ async function placeOrder(){
    throw Error('EiKO and Voltec parts must be ordered separately. Open the correct order form.');
   const customer=titleCase($('orderCustomer').value),job=$('orderJob').value.trim();
   if(!customer)throw Error('Customer / company is required.');
-  const hasVoltec=activeOrderDivision==='voltec';
-  const shipping=hasVoltec?packingShippingDetails():{shippingMethod:'cartons',palletCount:0,shippingCartons:null,manualTotalWeightLb:null};
+  const hasVoltec=activeOrderDivision==='voltec',hasReliance=activeOrderDivision==='reliance',hasShipping=hasVoltec||hasReliance;
+  const shipping=hasShipping?packingShippingDetails():{shippingMethod:'cartons',palletCount:0,shippingCartons:null,manualTotalWeightLb:null};
   const lines=Object.entries(cart).map(([key,qty])=>{
    const [division,id]=key.split(':'),item=manualOrderGet(key)||inventoryOf(division).find(x=>x.id===Number(id)),ordered=Number(qty);
    if(!item||!Number.isSafeInteger(ordered)||ordered<1)throw Error('Check the selected quantities.');
-   if(division==='voltec')return packingShipmentLine(key,item,ordered);
+   if(division!=='eiko')return packingShipmentLine(key,item,ordered);
    if(item.manual)return {division,id:item.id,manual:true,part:item.part,code:item.code,desc:item.desc,qty:ordered};
    if(ordered>item.qty)throw Error('Not enough EiKO stock for '+item.part+'.');
    return {division,id:Number(id),qty:ordered};
   });
   const shipped=lines.reduce((n,l)=>n+(l.shipped??l.qty),0),ordered=lines.reduce((n,l)=>n+l.qty,0);
   if(shipped<1)throw Error('At least one unit must be shipped to create a packing list.');
-  if(!confirm(hasVoltec
-   ?'Create Voltec packing slip?\n\n'+ordered+' units ordered · '+shipped+' shipped · '+(ordered-shipped)+' backordered.'+
+  if(!confirm(hasShipping
+   ?'Create '+brandLabel(activeOrderDivision)+' packing slip?\n\n'+ordered+' units ordered · '+shipped+' shipped · '+(ordered-shipped)+' backordered.'+
      '\nShipping: '+(shipping.shippingMethod==='pallets'?shipping.palletCount+' pallet(s), adding '+(shipping.palletCount*35)+' lb':'Cartons, no pallet weight')+
      (shipping.shippingCartons!==null?' · '+shipping.shippingCartons+' actual shipping boxes':'')+
      (shipping.manualTotalWeightLb!==null?'\nManual final shipping weight: '+shipping.manualTotalWeightLb+' lb (includes pallets)':'')+
@@ -494,7 +502,8 @@ async function placeOrder(){
    const response=await change('order',{customer,job,
     shippingMethod:shipping.shippingMethod,palletCount:shipping.palletCount,shippingCartons:shipping.shippingCartons,manualTotalWeightLb:shipping.manualTotalWeightLb,
     voltecSalesOrder:hasVoltec?$('orderVoltecSales').value.trim():'',
-    customerPo:hasVoltec?$('orderCustomerPO').value.trim():'',
+    relianceSalesOrder:hasReliance?$('orderVoltecSales').value.trim():'',
+    customerPo:hasShipping?$('orderCustomerPO').value.trim():'',
     attention:titleCase($('orderAttention').value),street:titleCase($('orderStreet').value),
     city:titleCase($('orderCity').value),state:$('orderState').value.trim().toUpperCase(),
     zip:$('orderZip').value.trim(),notes:$('orderNotes').value,lines});
@@ -530,7 +539,7 @@ function openPacking(id){
 }
 function renderPacking(id){
  const o=(db.orders||[]).find(x=>x.id===id);if(!o)return;
- if((o.lines||[]).some(l=>l.division==='voltec')){
+ if((o.lines||[]).some(l=>l.division==='voltec'||l.division==='reliance')){
   $('packingPaper').innerHTML=voltecPackingHTML(o);
   return;
  }
