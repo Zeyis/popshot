@@ -97,7 +97,7 @@ function packingShipmentMarkup(key,item,ordered){
  const input=(field,opts={})=>'<input id="ship_'+field+'_'+suffix+'" type="number" min="0" step="'+(opts.decimal?'0.01':'1')+'" inputmode="'+(opts.decimal?'decimal':'numeric')+
   '" value="'+esc(v[field]===''?'':v[field])+'" placeholder="'+(opts.placeholder||'—')+
   '" oninput="packingShipmentSet(\''+esc(key)+'\',\''+field+'\',this.value)">';
- return '<article class="packing-shipment-row"><div class="packing-shipment-heading"><div><strong>'+esc(item.part)+'</strong> <span class="tag">'+(key.startsWith('voltec:')?'Voltec':'EiKO')+'</span><p class="muted">'+esc(item.code||'')+' · '+Number(item.qty)+' on hand</p></div><button class="slim danger" onclick="removeCart(\''+esc(key)+'\')">Remove</button></div>'+
+ return '<article class="packing-shipment-row"><div class="packing-shipment-heading"><div><strong>'+esc(item.part)+'</strong> <span class="tag">'+(item.manual?'Custom Voltec':key.startsWith('voltec:')?'Voltec':'EiKO')+'</span><p class="muted">'+esc(item.code||'')+(item.manual?' · Manual part · no inventory deduction':' · '+Number(item.qty)+' on hand')+'</p></div><button class="slim danger" onclick="removeCart(\''+esc(key)+'\')">Remove</button></div>'+
   '<div class="packing-shipment-fields">'+
   '<label>Ordered <input type="number" min="1" step="1" inputmode="numeric" value="'+esc(ordered)+'" onchange="setCartQty(\''+esc(key)+'\',this.value)"></label>'+
   '<label>Shipped '+input('shipped')+'</label>'+
@@ -116,7 +116,7 @@ function packingShipmentMarkup(key,item,ordered){
 function packingShipmentLine(key,item,ordered){
  const v=packingShipmentGet(key,item,ordered);
  const shipped=Number(v.shipped);
- if(!Number.isSafeInteger(shipped)||shipped<0||shipped>Number(ordered)||shipped>Number(item.qty))
+ if(!Number.isSafeInteger(shipped)||shipped<0||shipped>Number(ordered)||(!item.manual&&shipped>Number(item.qty)))
   throw Error('Check shipped quantity for '+item.part+'. Shipped must not exceed ordered or available inventory.');
  const casesPulled=v.casesPulled===''?null:Number(v.casesPulled);
  const casePack=v.casePack===''?null:Number(v.casePack);
@@ -128,7 +128,9 @@ function packingShipmentLine(key,item,ordered){
   throw Error('Check weight per case for '+item.part+'.');
  // An unknown pulled-case count leaves total weight blank; do not block the order.
  const [division,id]=key.split(':');
- return {division,id:Number(id),qty:Number(ordered),shipped,casesPulled,casePack,
+ return {division,id:item.manual?item.id:Number(id),
+  ...(item.manual?{manual:true,part:item.part,code:item.code,desc:item.desc}:{}),
+  qty:Number(ordered),shipped,casesPulled,casePack,
   perCaseWeightLb,weightLb,
   weightEstimated:weightLb!==null&&v.weightEstimated,
   weightSource:weightLb!==null?(v.weightEstimated?v.source:'Manual'):v.casePackTouched?'Manual':v.source,
