@@ -21,7 +21,7 @@ function manualOrderClear(){
  }
 }
 function manualOrderOpen(){
- if(activeOrderDivision!=='voltec')return;
+ if(activeOrderDivision==='eiko')return;
  const panel=document.getElementById('manualOrderPanel');
  if(!panel)return;
  panel.classList.remove('hidden');
@@ -32,7 +32,7 @@ function manualOrderOpen(){
  part?.focus();
 }
 function manualOrderAdd(){
- if(activeOrderDivision!=='voltec')return;
+ if(activeOrderDivision==='eiko')return;
  const part=(document.getElementById('manualPart')?.value||'').trim().toUpperCase();
  const code=(document.getElementById('manualCode')?.value||'').trim().toUpperCase();
  const desc=(document.getElementById('manualDescription')?.value||'').trim();
@@ -48,13 +48,13 @@ function manualOrderAdd(){
   manualOrderItems[k].part===part&&manualOrderItems[k].code===code);
  if(existing){
   cart[existing]+=qty;
-  if(activeOrderDivision==='voltec')packingShipmentOrderedChanged(existing,manualOrderGet(existing),cart[existing]);
+  if(activeOrderDivision!=='eiko')packingShipmentOrderedChanged(existing,manualOrderGet(existing),cart[existing]);
  }else{
   const key=manualOrderKey(activeOrderDivision);
   manualOrderItems[key]={manual:true,id:key.split(':')[1],
    division:activeOrderDivision,part,code,desc};
   cart[key]=qty;
-  if(activeOrderDivision==='voltec')packingShipmentGet(key,manualOrderGet(key),qty);
+  if(activeOrderDivision!=='eiko')packingShipmentGet(key,manualOrderGet(key),qty);
  }
  for(const field of ['manualPart','manualCode','manualDescription']){
   const el=document.getElementById(field);if(el)el.value='';
