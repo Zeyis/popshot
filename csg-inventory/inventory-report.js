@@ -9,8 +9,8 @@ const COLORS={
  pale:[243,246,247],line:[214,223,228],white:[255,255,255],warm:[254,252,244]
 };
 function csgSupplierReportData(content,division,updatedAt,generatedAt){
- const d=division==='voltec'?'voltec':'eiko';
- const source=d==='voltec'?(content?.voltec||[]):(content?.items||[]);
+ const d=division==='reliance'?'reliance':division==='voltec'?'voltec':'eiko';
+ const source=d==='reliance'?(content?.reliance||[]):d==='voltec'?(content?.voltec||[]):(content?.items||[]);
  const entries=source.map(item=>({
   part:String(item.part??'').trim(),
   code:String(item.code??'').trim(),
@@ -18,8 +18,8 @@ function csgSupplierReportData(content,division,updatedAt,generatedAt){
  })).filter(item=>item.part&&Number.isSafeInteger(item.qty)&&item.qty>=0)
  .sort((a,b)=>a.part.localeCompare(b.part,undefined,{numeric:true,sensitivity:'base'}));
  return {
-  division:d,supplier:d==='voltec'?'Voltec':'EiKO',
-  codeLabel:d==='voltec'?'ITEM CODE':'EIKO ORDERING CODE',
+  division:d,supplier:d==='reliance'?'Reliance':d==='voltec'?'Voltec':'EiKO',
+  codeLabel:d==='eiko'?'EIKO ORDERING CODE':'ITEM / ORDERING CODE',
   entries,totalParts:entries.length,
   totalUnits:entries.reduce((sum,item)=>sum+item.qty,0),
   outOfStock:entries.filter(item=>item.qty===0).length,
@@ -220,7 +220,7 @@ async function csgDownloadSupplierReport(kind='pdf'){
   // Fetch a fresh authenticated snapshot. Do not read the stale visible table
   // or allow a typed search filter to exclude some stock entries.
   const r=await request('state');
-  const scope=activeDivision==='voltec'?'voltec':'eiko';
+  const scope=activeDivision==='reliance'?'reliance':activeDivision==='voltec'?'voltec':'eiko';
   const report=csgSupplierReportData(r.content,scope,r.updated_at,new Date().toISOString());
   const base='CSG-'+report.supplier+'-Inventory-'+csgReportFileDate(report.generatedAt);
   if(kind==='csv'){
