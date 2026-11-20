@@ -97,7 +97,7 @@ function packingShipmentMarkup(key,item,ordered){
  const input=(field,opts={})=>'<input id="ship_'+field+'_'+suffix+'" type="number" min="0" step="'+(opts.decimal?'0.01':'1')+'" inputmode="'+(opts.decimal?'decimal':'numeric')+
   '" value="'+esc(v[field]===''?'':v[field])+'" placeholder="'+(opts.placeholder||'—')+
   '" oninput="packingShipmentSet(\''+esc(key)+'\',\''+field+'\',this.value)">';
- return '<article class="packing-shipment-row"><div class="packing-shipment-heading"><div><strong>'+esc(item.part)+'</strong> <span class="tag">'+(item.manual?'Custom Voltec':key.startsWith('voltec:')?'Voltec':'EiKO')+'</span><p class="muted">'+esc(item.code||'')+(item.manual?' · Manual part · no inventory deduction':' · '+Number(item.qty)+' on hand')+'</p></div><button class="slim danger" onclick="removeCart(\''+esc(key)+'\')">Remove</button></div>'+
+ return '<article class="packing-shipment-row"><div class="packing-shipment-heading"><div><strong>'+esc(item.part)+'</strong> <span class="tag">'+(item.manual?'Custom '+(key.startsWith('reliance:')?'Reliance':'Voltec'):key.startsWith('reliance:')?'Reliance':key.startsWith('voltec:')?'Voltec':'EiKO')+'</span><p class="muted">'+esc(item.code||'')+(item.manual?' · Manual part · no inventory deduction':' · '+Number(item.qty)+' on hand')+'</p></div><button class="slim danger" onclick="removeCart(\''+esc(key)+'\')">Remove</button></div>'+
   '<div class="packing-shipment-fields">'+
   '<label>Ordered <input type="number" min="1" step="1" inputmode="numeric" value="'+esc(ordered)+'" onchange="setCartQty(\''+esc(key)+'\',this.value)"></label>'+
   '<label>Shipped '+input('shipped')+'</label>'+
@@ -196,7 +196,7 @@ function packingShippingDetails(){
  const calc=packingShippingCalculation(mode,mode==='pallets'?Number(raw):0,null);
  if(mode==='pallets'&&calc.palletCount<1)throw Error('Enter at least one pallet.');
  const cartons=document.getElementById('orderShippingCartons')?.value??'';
- const counts=Object.keys(cart||{}).filter(k=>k.startsWith('voltec:')).map(k=>packingShipmentDraft[k]?.casesPulled??null);
+ const counts=Object.keys(cart||{}).filter(k=>!k.startsWith('eiko:')).map(k=>packingShipmentDraft[k]?.casesPulled??null);
  const cartonResult=packingShippingCartonCount(counts,cartons);
  const manualTotalWeightLb=packingManualTotalWeight(document.getElementById('orderManualTotalWeight')?.value??'');
  return {shippingMethod:calc.shippingMethod,palletCount:calc.palletCount,
@@ -228,7 +228,7 @@ function packingShipmentSummary(){
  const pallets=document.getElementById('orderPalletCount')?.value||'';
  const palletCount=mode==='pallets'&&/^\d+$/.test(pallets)?Number(pallets):0;
  const palletLb=mode==='pallets'&&Number.isSafeInteger(palletCount)&&palletCount>0?palletCount*PACKING_PALLET_TARE_LB:0;
- const knownCases=Object.keys(cart).filter(k=>k.startsWith('voltec:')).map(k=>packingShipmentDraft[k]?.casesPulled??null);
+ const knownCases=Object.keys(cart).filter(k=>!k.startsWith('eiko:')).map(k=>packingShipmentDraft[k]?.casesPulled??null);
  let boxes={cartons:null,manual:false};
  try{boxes=packingShippingCartonCount(knownCases,document.getElementById('orderShippingCartons')?.value??'')}catch{}
  const manualInput=document.getElementById('orderManualTotalWeight')?.value??'';
