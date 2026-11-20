@@ -1,6 +1,7 @@
 const assert=require('node:assert/strict');
 const fs=require('node:fs');
 const PDFLib=require('pdf-lib');
+const vm=require('node:vm');
 const html=fs.readFileSync('csg-inventory/index.html','utf8');
 const originalPdf=fs.readFileSync('csg-inventory/packing-pdf.js','utf8');
 const {voltecPackingNormalize,voltecPackingSummary,voltecPackingShippingTotals,voltecPackingHTML,voltecPackingBuildPDF}=require('../../csg-inventory/voltec-packing.js');
@@ -24,6 +25,16 @@ const {packingEditInitial,packingEditPayload,packingEditComputed}=require('../..
  assert(originalPdf.includes("line.division==='voltec'||line.division==='reliance'"),
   "Downloaded PDF uses supplier shipping renderer");
  assert(html.includes('id="relianceSource"'),"User can see Odoo screenshot import disclaimer");
+ assert(html.includes('<option value="reliance">Reliance</option>'),'Receiving supplier select offers Reliance');
+ const receiptCode=fs.readFileSync('csg-inventory/receiving.js','utf8');
+ assert(receiptCode.includes("['voltec','eiko','reliance']"),'Receiving accepts Reliance item lines');
+ const ctx={};
+ vm.createContext(ctx);
+ vm.runInContext(fs.readFileSync('csg-inventory/receiving-ocr.js','utf8'),ctx);
+ const scan=ctx.parseReceivingText('Reliance shipment\nREL-306CRK 4');
+ assert.equal(scan.supplier,'Reliance');
+ assert.equal(scan.division,'reliance');
+ assert.equal(scan.lines[0].part,'REL-306CRK');
  const saved={
   id:'rel-order-1',number:'CSG-2026-0801',status:'confirmed',
   recipient:'Example Electrical Contractors',job:'Reliance generator installation',
