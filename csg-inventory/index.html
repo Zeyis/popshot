@@ -68,6 +68,11 @@
 .packing-edit-row .packing-edit-grid{margin-top:11px}
 .packing-edit-summary{background:#eee;border-radius:8px;margin:18px 0;padding:14px;color:#333;font-weight:700;line-height:1.5}
 @media(max-width:650px){.packing-edit-panel{padding:14px}.packing-edit-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}}
+.packing-box-weights{margin:12px 0;padding:13px;border:1px solid #d2d2d2;border-radius:9px;background:#f7f7f7}
+.packing-box-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.packing-box-grid label{display:flex;flex-direction:column;gap:5px;font-size:12px;font-weight:650;color:#383838}
+.packing-box-grid input{width:100%;min-width:0}
+@media(max-width:620px){.packing-box-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 </style><link rel="stylesheet" href="bj.css"><link rel="stylesheet" href="eiko-autocomplete.css"><link rel="stylesheet" href="activity-log.css"></head>
 <body>
 <header><div class="brand"><div class="emblem">CSG</div><div><div class="brand-name">CAHABA SALES GROUP</div><div class="brand-sub">WAREHOUSE · EiKO + VOLTEC</div></div></div><div class="user" id="identityHeader">Secure shared inventory</div></header>
@@ -141,14 +146,15 @@
  </div>
  <div style="margin-top:12px;max-width:370px"><label for="orderShippingCartons">Actual shipping boxes / cartons</label>
   <input id="orderShippingCartons" type="number" min="0" max="100000" step="1" inputmode="numeric"
-   placeholder="Auto: sum of cases pulled" oninput="packingShipmentSummary()">
+   placeholder="Auto: sum of cases pulled" oninput="packingBoxesCountChanged()">
   <p class="sub" style="margin:5px 0 0">Editable: 7 cases can be double-packed into 5 boxes. Leave blank to use the case count automatically.</p>
  </div>
+ <div id="orderBoxWeights" class="packing-box-weights"></div>
  <div style="margin-top:12px;max-width:370px">
-  <label for="orderManualTotalWeight"><strong>Final Shipping Weight (lb) — Enter Manually</strong></label>
+  <label for="orderManualTotalWeight"><strong>Override Final Shipping Weight (lb) · Optional</strong></label>
   <input id="orderManualTotalWeight" type="number" min="0" max="1000000" step="0.01" inputmode="decimal"
    placeholder="Type final shipment weight in lb" oninput="packingShipmentSummary()">
-  <p class="sub" style="margin:5px 0 0">This is the only shipping weight printed on the PDF. Include pallets and packaging in your number. Leave blank if the shipment has not been weighed — no weight will be estimated.</p>
+  <p class="sub" style="margin:5px 0 0">Normally the app totals your entered box weights and adds 35 lb per pallet. Enter a final override only if the confirmed freight weight is different. No product weights are estimated.</p>
  </div>
  <div class="row" style="margin-top:10px;gap:9px;flex-wrap:wrap">
   <button type="button" id="addPalletWeightButton" class="slim" onclick="packingAddPalletWeight()">+ Add Pallet (35 lb tare reference)</button>
@@ -342,6 +348,7 @@ function tab(name){
   if(Object.keys(cart).length&&!confirm('Switch to '+brandLabel(targetOrderDivision)+' ordering? Unsaved items on the other order will be cleared.'))return;
   cart={};
   if(typeof packingShipmentClear==='function')packingShipmentClear();
+  if(typeof packingBoxClear==='function')packingBoxClear();
   if(typeof manualOrderClear==='function')manualOrderClear();
   if(typeof packingShippingReset==='function')packingShippingReset();
   for(const id of ['orderCustomer','orderJob','orderAttention','orderStreet','orderCity','orderState','orderZip','orderNotes','orderSearch','orderVoltecSales','orderCustomerPO']){
@@ -509,7 +516,7 @@ async function placeOrder(){
     zip:$('orderZip').value.trim(),notes:$('orderNotes').value,lines});
    const created=(response.content?.orders||[]).find(o=>!existingIds.has(o.id))
      ||(response.content?.orders||[])[0];
-   cart={};packingShipmentClear();manualOrderClear();packingShippingReset();
+   cart={};packingShipmentClear();packingBoxClear();manualOrderClear();packingShippingReset();
    for(const id of ['orderCustomer','orderJob','orderVoltecSales','orderCustomerPO','orderAttention','orderStreet','orderCity','orderState','orderZip','orderNotes','orderSearch'])$(id).value='';
    if(created){
      openPacking(created.id);
@@ -577,4 +584,4 @@ async function start(){
 document.addEventListener('visibilitychange',()=>{if(!document.hidden&&token)refresh().catch(()=>{})});
 setInterval(()=>{if(token&&!document.hidden&&activeTab!=='part'&&activeTab!=='order'&&activeTab!=='packing'&&activeTab!=='bj'&&activeTab!=='bjprint')refresh().catch(()=>{})},30000);
 start();
-</script><script src="receiving-ocr.js"></script><script src="receiving.js"></script><script src="bj-pdf.js"></script><script src="bj.js"></script><script src="eiko-autocomplete.js"></script><script src="activity-log.js"></script><script src="inventory-report.js"></script><script src="packing-shipment.js"></script><script src="custom-order.js"></script><script src="voltec-packing.js"></script><script src="packing-edit.js"></script><script src="packing-pdf.js"></script></body></html>
+</script><script src="receiving-ocr.js"></script><script src="receiving.js"></script><script src="bj-pdf.js"></script><script src="bj.js"></script><script src="eiko-autocomplete.js"></script><script src="activity-log.js"></script><script src="inventory-report.js"></script><script src="packing-shipment.js"></script><script src="packing-box-weights.js"></script><script src="custom-order.js"></script><script src="voltec-packing.js"></script><script src="packing-edit.js"></script><script src="packing-pdf.js"></script></body></html>
