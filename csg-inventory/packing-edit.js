@@ -8,9 +8,26 @@ const packingEditCartonCounter=typeof packingShippingCartonCount==='function'
 const packingEditWeightParser=typeof packingManualTotalWeight==='function'
  ?packingManualTotalWeight
  :(typeof module!=='undefined'&&module.exports?require('./packing-shipment.js').packingManualTotalWeight:null);
+const packingEditBoxTotals=typeof packingBoxTotals==='function'
+ ?packingBoxTotals
+ :(typeof module!=='undefined'&&module.exports?require('./packing-box-weights.js').packingBoxTotals:null);
 const packingEditFields=['recipient','job','attention','street','city','state','zip','notes','voltecSalesOrder','customerPo','shippingMethod','palletCount','shippingCartons','manualTotalWeightLb'];
 function packingEditEscape(v){
  return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+function packingEditLegacyWeights(order){
+ if(Array.isArray(order.boxWeightsLb))return {weights:order.boxWeightsLb.map(v=>v==null?'':String(v)),legacy:false};
+ // Preserve older MANUALLY entered per-case weights only if there is a 1:1
+ // mapping between pulled cases and physical boxes. Never import catalog estimates.
+ const lines=order.lines||[],boxes=order.shippingCartons;
+ const counts=lines.map(l=>l.casesPulled);
+ const known=counts.length&&counts.every(c=>Number.isSafeInteger(Number(c))&&c!==null&&Number(c)>=0);
+ const sum=known?counts.reduce((n,c)=>n+Number(c),0):null;
+ const numberOfBoxes=boxes==null?sum:Number(boxes);
+ const safe=known&&sum===numberOfBoxes&&sum>0&&sum<=200&&
+  lines.every(l=>l.perCaseWeightLb!=null&&l.weightEstimated!==true);
+ if(!safe)return {weights:[],legacy:false};
+ return {weights:lines.flatMap(l=>Array(Number(l.casesPulled)).fill(String(l.perCaseWeightLb))),legacy:true};
 }
 function packingEditInitial(order){
  if(!order?.id||order.status==='cancelled')throw Error('Only confirmed packing lists can be edited.');
@@ -25,6 +42,8 @@ function packingEditInitial(order){
   palletCount:order.shippingMethod==='pallets'?String(order.palletCount||''):'',
   shippingCartons:order.shippingCartons==null?'':String(order.shippingCartons),
   manualTotalWeightLb:order.manualTotalWeightLb==null?'':String(order.manualTotalWeightLb),
+  boxWeightsLb:packingEditLegacyWeights(order).weights,
+  convertedLegacyWeights:packingEditLegacyWeights(order).legacy,
   lines:(order.lines||[]).map(l=>({
     division:l.division,id:l.id,manual:l.manual===true,
     part:l.part,code:l.code||'',desc:l.desc||'',
@@ -45,15 +64,44 @@ function packingEditComputed(draft){
   shipped+=Number(line.shipped)||0;
   if(line.casesPulled!=='')cases+=Number(line.casesPulled)||0;
  }
+ const cartons=packingEditCartonCounter(draft.lines.map(l=>l.casesPulled),draft.shippingCartons);
  const pallets=draft.shippingMethod==='pallets'?(Number(draft.palletCount)||0):0;
  const tare=Number.isSafeInteger(pallets)&&pallets>=0?pallets*35:0;
- const manualTotalWeightLb=draft.isVoltec&&draft.manualTotalWeightLb!==''?
+ const manual=draft.isVoltec&&draft.manualTotalWeightLb!==''?
   Number(draft.manualTotalWeightLb):null;
- const boxes=packingEditCartonCounter(draft.lines.map(l=>l.casesPulled),draft.shippingCartons);
+ const weights=(draft.boxWeightsLb||[]).slice();
+ const measured=packingEditBoxTotals({cartons:cartons.cartons,boxWeightsLb:weights,
+  shippingMethod:draft.shippingMethod,palletCount:pallets,
+  manualTotalWeightLb:draft.manualTotalWeightLb});
  return {ordered,shipped,backordered:ordered-shipped,cases,
-  shippingCartons:boxes.cartons,cartonsManuallySet:boxes.manual,
-  pallets,palletWeightLb:tare,manualTotalWeightLb,
-  totalWeightLb:manualTotalWeightLb};
+  shippingCartons:cartons.cartons,cartonsManuallySet:cartons.manual,
+  pallets,palletWeightLb:tare,manualTotalWeightLb:manual,
+  boxWeightsLb:weights,boxTotalWeightLb:measured.boxWeightLb,
+  boxWeightsEntered:measured.entered,boxWeightsComplete:measured.allEntered,
+  totalWeightLb:measured.finalWeightLb};
+}
+function packingEditBoxRows(){
+ const draft=packingEditDraft;
+ if(!draft?.isVoltec)return '';
+ const cartons=packingEditCartonCounter(draft.lines.map(l=>l.casesPulled),draft.shippingCartons).cartons;
+ if(cartons===null||cartons===0)return '<p class="sub">Set how many shipping boxes you have to enter individual weights.</p>';
+ if(cartons>200)return '<p class="sub">For more than 200 boxes, enter the confirmed final total weight below.</p>';
+ while(draft.boxWeightsLb.length<cartons)draft.boxWeightsLb.push('');
+ if(draft.boxWeightsLb.length>cartons)draft.boxWeightsLb.length=cartons;
+ return (draft.convertedLegacyWeights?
+  '<p class="sub">Existing manually entered case weights were copied into the matching box fields. Verify these values before saving.</p>':'')+
+  '<div class="packing-box-grid">'+draft.boxWeightsLb.map((v,i)=>
+   '<label>Box '+(i+1)+' (lb)<input type="number" min="0" max="1000000" step="0.01" inputmode="decimal"'+
+   ' value="'+packingEditEscape(v)+'" oninput="packingEditSetBox('+i+',this.value)"></label>').join('')+'</div>';
+}
+function packingEditBoxFieldsRefresh(){
+ const target=document.getElementById('packingEditBoxWeights');
+ if(target)target.innerHTML=packingEditBoxRows();
+}
+function packingEditSetBox(index,weight){
+ if(!packingEditDraft||!packingEditDraft.isVoltec||index<0||index>=packingEditDraft.boxWeightsLb.length)return;
+ packingEditDraft.boxWeightsLb[index]=weight;
+ packingEditSummary();
 }
 function packingEditTextField(label,key,options={}){
  const d=packingEditDraft;
@@ -109,11 +157,13 @@ function packingEditRender(){
    '<input type="number" min="1" max="1000" step="1" inputmode="numeric" id="packingEditPalletCount" value="'+
    packingEditEscape(d.palletCount)+'" oninput="packingEditSet(\'palletCount\',this.value)"></label></div>'+
    '<button type="button" class="slim" style="margin-top:10px" onclick="packingEditAddPallet()">+ Add Pallet (35 lb tare reference)</button>'+
-   '<div style="margin-top:14px;max-width:370px"><label>Final Shipping Weight (lb) — Enter Manually'+
+   '<h3>Actual weight of each shipping box</h3><div id="packingEditBoxWeights" class="packing-box-weights">'+
+    packingEditBoxRows()+'</div>'+
+   '<div style="margin-top:14px;max-width:370px"><label>Override Final Shipping Weight (lb) · Optional'+
     '<input type="number" min="0" max="1000000" step="0.01" inputmode="decimal"'+
     ' placeholder="Enter final weight" value="'+packingEditEscape(d.manualTotalWeightLb)+
     '" oninput="packingEditSet(\'manualTotalWeightLb\',this.value)"></label>'+
-    '<p class="sub">This is the only shipping weight on the packing slip. Include pallets and packaging. Blank means not entered — no automatic estimate.</p></div>':'')+
+    '<p class="sub">Normally totals entered box weights plus 35 lb per pallet. Use this override only for a different confirmed total.</p></div>':'')+
   '<h3>Original order lines</h3><p class="sub">Part numbers stay fixed. Save a new order to add or remove parts.</p>'+
   lines+packingEditTextField('Notes','notes',{optional:true,multiline:true})+
   '<div id="packingEditTotals" class="packing-edit-summary"></div>'+
@@ -129,8 +179,11 @@ function packingEditSummary(){
   ' backordered · '+sum.cases+' cases pulled'+
   (d.isVoltec&&sum.shippingCartons!==null?' · '+sum.shippingCartons+' shipping boxes':'')+
   (d.isVoltec?' · '+sum.pallets+' pallets':'')+
-  ' · Final shipping weight: '+(sum.manualTotalWeightLb===null
-   ?'Not entered':sum.manualTotalWeightLb.toFixed(2)+' lb (manual, includes packaging)');
+  ' · '+sum.boxWeightsEntered+' box weights entered'+
+  (sum.boxTotalWeightLb!==null?' · Box total: '+sum.boxTotalWeightLb.toFixed(2)+' lb':'')+
+  ' · Final shipping weight: '+(sum.totalWeightLb===null
+   ?'Not entered':sum.totalWeightLb.toFixed(2)+' lb'+
+    (sum.manualTotalWeightLb!==null?' (override)':' (entered box weights'+(sum.pallets?' + pallet tare':'')+')'));
 }
 function packingEditAddPallet(){
  if(!packingEditDraft||!packingEditDraft.isVoltec)return;
@@ -153,6 +206,7 @@ function packingEditAddPallet(){
 function packingEditSet(key,value){
  if(!packingEditDraft||!packingEditFields.includes(key))return;
  packingEditDraft[key]=value;
+ if(key==='shippingCartons')packingEditBoxFieldsRefresh();
  if(key==='shippingMethod'){
   const field=document.getElementById('packingEditPalletLabel');
   if(field)field.classList.toggle('hidden',value!=='pallets');
@@ -163,6 +217,7 @@ function packingEditSetLine(index,key,value){
  if(!packingEditDraft||!packingEditDraft.lines[index]||
   !['ordered','shipped','casesPulled','casePack','perCaseWeightLb','part','code','desc'].includes(key))return;
  packingEditDraft.lines[index][key]=value;
+ if(key==='casesPulled')packingEditBoxFieldsRefresh();
  packingEditSummary();
 }
 function packingEditPayload(d){
@@ -192,6 +247,10 @@ function packingEditPayload(d){
  const cartons=d.isVoltec?packingEditCartonCounter(d.lines.map(l=>l.casesPulled),d.shippingCartons):
   {cartons:null,manual:false};
  const manualTotalWeightLb=d.isVoltec?packingEditWeightParser(d.manualTotalWeightLb):null;
+ const boxWeightsLb=d.isVoltec?packingEditBoxTotals({
+  cartons:cartons.cartons,boxWeightsLb:d.boxWeightsLb,
+  shippingMethod:d.shippingMethod,palletCount:d.palletCount,
+  manualTotalWeightLb:d.manualTotalWeightLb}).weights.map(v=>v===''?null:Number(v)):[];
  const shippingMethod=d.isVoltec&&d.shippingMethod==='pallets'?'pallets':'cartons';
  const palletCount=shippingMethod==='pallets'?Number(d.palletCount):0;
  if(shippingMethod==='pallets'&&(!Number.isSafeInteger(palletCount)||palletCount<1||palletCount>1000))
@@ -202,7 +261,7 @@ function packingEditPayload(d){
   relianceSalesOrder:d.supplierDivision==='reliance'?d.voltecSalesOrder:'',
   customerPo:d.customerPo,shippingMethod,palletCount,
   shippingCartons:cartons.manual?cartons.cartons:null,
-  manualTotalWeightLb,lines};
+  manualTotalWeightLb,boxWeightsLb,lines};
 }
 function packingEditOpen(id){
  const o=(db.orders||[]).find(x=>x.id===(id||selectedOrder));
@@ -249,7 +308,7 @@ async function packingEditSave(){
 }
 if(typeof window!=='undefined'){
  Object.assign(window,{packingEditOpen,packingEditClose,packingEditSet,
- packingEditSetLine,packingEditSave,packingEditAddPallet});
+ packingEditSetLine,packingEditSave,packingEditAddPallet,packingEditSetBox});
 }
 if(typeof module!=='undefined'&&module.exports)
  module.exports={packingEditInitial,packingEditComputed,packingEditPayload,packingEditAddPallet};
