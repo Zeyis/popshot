@@ -46,21 +46,18 @@ function voltecPackingSummary(lines){
 function voltecPackingShippingTotals(order,itemsSummary){
  const isPallets=order.shippingMethod==='pallets';
  const palletCount=isPallets?Number(order.palletCount)||0:0;
- const palletWeightLb=palletCount*35;
- const itemsWeightLb=itemsSummary.weightsKnown?Math.round(itemsSummary.knownLb*100)/100:null;
- const allWeightsKnown=itemsSummary.weightsKnown===order.lines.length;
+ const palletWeightLb=palletCount*35; // Informational pallet tare only; do not add to the final weight.
  const manualCartons=order.shippingCartons!==null&&order.shippingCartons!==undefined;
  const knownCaseCounts=order.lines.map(line=>line.casesPulled);
  const autoCartons=knownCaseCounts.length>0&&knownCaseCounts.every(c=>Number.isSafeInteger(c)&&c>=0)
   ?knownCaseCounts.reduce((n,c)=>n+c,0):null;
  const shippingCartons=manualCartons?order.shippingCartons:autoCartons;
- const manualTotalWeightLb=order.manualTotalWeightLb===null||order.manualTotalWeightLb===undefined?null:Number(order.manualTotalWeightLb);
- const calculatedTotalLb=allWeightsKnown?Math.round(((itemsWeightLb||0)+palletWeightLb)*100)/100:null;
- return {shippingMethod:isPallets?'pallets':'cartons',palletCount,palletWeightLb,manualTotalWeightLb,
-  calculatedTotalLb,
-  shippingCartons,cartonsManuallySet:manualCartons,itemsWeightLb,allWeightsKnown,
-  knownCombinedLb:(itemsWeightLb===null?0:itemsWeightLb)+palletWeightLb,
-  grandTotalLb:manualTotalWeightLb!==null?manualTotalWeightLb:calculatedTotalLb};
+ const manualTotalWeightLb=order.manualTotalWeightLb===null||order.manualTotalWeightLb===undefined
+  ?null:Number(order.manualTotalWeightLb);
+ return {shippingMethod:isPallets?'pallets':'cartons',palletCount,palletWeightLb,
+  shippingCartons,cartonsManuallySet:manualCartons,manualTotalWeightLb,
+  itemsWeightLb:null,allWeightsKnown:false,knownCombinedLb:null,calculatedTotalLb:null,
+  grandTotalLb:manualTotalWeightLb};
 }
 async function voltecPackingBuildPDF(original,options={}){
  const {PDFDocument,StandardFonts,rgb}=options.pdfLib||globalThis.PDFLib||await bjPdfLoadLibrary();
@@ -109,16 +106,14 @@ async function voltecPackingBuildPDF(original,options={}){
  }
  function tableHeader(){
   page.drawRectangle({x:left,y:y-35,width:right-left,height:35,color:C.dark});
-  const h=y-14;
-  put('PART / DESCRIPTION',left+9,h,7.7,true,C.white,195);
-  put('ORDER',259,h,6.7,true,C.white,45);
-  put('CODE',259,h-13,6.7,true,C.white,45);
-  put('ORDERED',335,h-6,7,true,C.white,45,true);
-  put('SHIPPED',382,h-6,7,true,C.white,45,true);
-  put('B/O',425,h-6,7,true,C.white,34,true);
-  put('CASES',473,h-6,7,true,C.white,44,true);
-  put('TOTAL',563,h-1,7,true,C.white,69,true);
-  put('(LB)',563,h-13,6.4,true,C.white,69,true);
+  const h=y-15;
+  put('PART / DESCRIPTION',left+9,h,7.7,true,C.white,200);
+  put('ORDER',260,h+3,7,true,C.white,70);
+  put('CODE',260,h-10,7,true,C.white,70);
+  put('ORDERED',389,h-6,7,true,C.white,50,true);
+  put('SHIPPED',449,h-6,7,true,C.white,50,true);
+  put('B/O',498,h-6,7,true,C.white,35,true);
+  put('CASES',562,h-6,7,true,C.white,52,true);
   y-=35;
  }
  function pageHeader(first){
@@ -168,7 +163,7 @@ async function voltecPackingBuildPDF(original,options={}){
  function rowHeight(item){
   let h=36;
   if(safe(item.description).length>44)h+=10;
-  if(item.casePack||item.perCaseWeightLb!==null)h+=12;
+  if(item.casePack)h+=12;
   return h;
  }
  pageHeader(true);
@@ -180,54 +175,40 @@ async function voltecPackingBuildPDF(original,options={}){
   put(String(line.index).padStart(2,'0')+' '+line.part,left+9,y-15,8.3,true,C.dark,204);
   const ds=wrap((line.division==='EiKO'?'EiKO  |  ':'')+line.description,200,normal,7,2);
   ds.forEach((t,i)=>put(t,left+9,y-26-i*10,7,false,C.mid,202));
-  if(line.casePack||line.perCaseWeightLb!==null)put(
-   [line.casePack?'CASE PACK: '+line.casePack+' EA':'',line.perCaseWeightLb!==null?'WT/CASE: '+line.perCaseWeightLb.toFixed(2)+' LB':''].filter(Boolean).join('  |  '),
-   left+9,bottom+6,6.4,false,C.mid,198);
-  put(line.code||'-',259,y-21,7.4,false,C.black,47);
-  put(line.ordered.toLocaleString('en-US'),335,y-21,9,true,C.dark,43,true);
-  put(line.shipped.toLocaleString('en-US'),382,y-21,9,true,C.dark,43,true);
-  put(line.backordered.toLocaleString('en-US'),425,y-21,9,true,C.dark,36,true);
-  if(line.casesPulled!==null)put(line.casesPulled.toLocaleString('en-US'),473,y-21,8.5,true,C.dark,42,true);
-  if(line.weightLb!==null)put((line.weightEstimated?'~':'')+line.weightLb.toFixed(2),563,y-21,8.7,true,C.dark,75,true);
+  if(line.casePack)put('CASE PACK: '+line.casePack+' EA',left+9,bottom+6,6.4,false,C.mid,198);
+  put(line.code||'-',260,y-21,7.4,false,C.black,65);
+  put(line.ordered.toLocaleString('en-US'),389,y-21,9,true,C.dark,50,true);
+  put(line.shipped.toLocaleString('en-US'),449,y-21,9,true,C.dark,50,true);
+  put(line.backordered.toLocaleString('en-US'),498,y-21,9,true,C.dark,35,true);
+  if(line.casesPulled!==null)put(line.casesPulled.toLocaleString('en-US'),562,y-21,8.5,true,C.dark,52,true);
   rule(bottom,left,right,.5);
   y=bottom;
  }
- // The summary belongs immediately below the final item; unused page stays white.
+ // Only an explicitly entered final weight is printed; never infer freight weight.
  if(y<257)pageHeader(false);
  const summaryTop=y-12;
  page.drawRectangle({x:left,y:summaryTop-112,width:528,height:112,color:C.light});
  put('SHIPMENT TOTALS',left+10,summaryTop-17,8.6,true,C.dark);
  const metrics=[
-  ['ORDERED',summary.ordered.toLocaleString('en-US'),left+10,84],
-  ['SHIPPED',summary.shipped.toLocaleString('en-US'),left+112,80],
-  ['BACKORDERED',summary.backordered.toLocaleString('en-US'),left+218,87],
-  ['CASES PULLED',summary.casesKnown?String(summary.knownCases)+(summary.casesKnown<saved.lines.length?'*':''):'-',left+326,86],
-  ['WEIGHT (LB)',summary.weightsKnown?(summary.estimatedWeight?'~':'')+summary.knownLb.toFixed(2)+(summary.weightsKnown<saved.lines.length?'*':''):'-',left+440,88]
+  ['ORDERED',summary.ordered.toLocaleString('en-US'),left+10,94],
+  ['SHIPPED',summary.shipped.toLocaleString('en-US'),left+143,90],
+  ['BACKORDERED',summary.backordered.toLocaleString('en-US'),left+280,99],
+  ['CASES PULLED',summary.casesKnown?String(summary.knownCases)+(summary.casesKnown<saved.lines.length?'*':''):'-',left+414,100]
  ];
  for(const [label,val,x,width] of metrics){
-  put(label,x,summaryTop-33,7.0,true,C.mid,width);
-  put(val,x,summaryTop-52,13.0,true,C.dark,width);
+  put(label,x,summaryTop-35,7.0,true,C.mid,width);
+  put(val,x,summaryTop-54,13.0,true,C.dark,width);
  }
- // The printed summary distinguishes weight of the goods from empty pallets.
- rule(summaryTop-70,left+10,right-10,.5,C.border);
- const goodsLabel=shipping.itemsWeightLb===null?'Not recorded':
-   shipping.itemsWeightLb.toFixed(2)+' lb'+(shipping.allWeightsKnown?'':' (known lines only)');
- put('ITEM WEIGHT: '+goodsLabel,left+10,summaryTop-86,8,false,C.dark,295);
- put('BOXES: '+(shipping.shippingCartons===null?'--':shipping.shippingCartons)+
-  (shipping.shippingMethod==='pallets'?'  |  '+shipping.palletCount+' PALLET(S)':''),
-  right-12,summaryTop-86,8,true,C.dark,180,true);
- put('PALLET WEIGHT: '+shipping.palletWeightLb.toFixed(2)+' lb',left+10,summaryTop-101,8,false,C.dark,205);
- put((shipping.manualTotalWeightLb!==null?'MANUAL FINAL WEIGHT: ':
-      shipping.grandTotalLb!==null?'TOTAL SHIPPING WEIGHT: ':'KNOWN SHIPPING WEIGHT: ')+
-     (shipping.grandTotalLb!==null?shipping.grandTotalLb:shipping.knownCombinedLb).toFixed(2)+' lb',
-     right-12,summaryTop-101,8.5,true,C.dark,288,true);
+ rule(summaryTop-67,left+10,right-10,.5,C.border);
+ put('ACTUAL BOXES: '+(shipping.shippingCartons===null?'Not entered':shipping.shippingCartons)+
+  '   |   SHIPS: '+(shipping.shippingMethod==='pallets'?shipping.palletCount+' pallet(s)':'Cartons'),
+  left+10,summaryTop-83,8,true,C.dark,510);
+ put('FINAL SHIPPING WEIGHT (MANUAL): '+
+  (shipping.manualTotalWeightLb===null?'Not entered':shipping.manualTotalWeightLb.toFixed(2)+' lb'),
+  left+10,summaryTop-101,9.5,true,C.dark,512);
  let after=summaryTop-126;
- if((summary.casesKnown&&summary.casesKnown<saved.lines.length)||
-    (summary.weightsKnown&&summary.weightsKnown<saved.lines.length))
-  put('* Totals include only lines with known cases / weights.',left,after,7.1,false,C.mid,524);
- if(summary.estimatedWeight){
-  after-=13;put('~ Estimated from published full-case weights. Confirm actual shipment weight.',left,after,7,false,C.mid,526);
- }
+ if(summary.casesKnown>0&&summary.casesKnown<saved.lines.length)
+  put('* Case count includes only lines with known cases.',left,after,7.1,false,C.mid,524);
  if(saved.notes){
   after-=22;
   if(after<88){pageHeader(false);after=y-20}
@@ -255,7 +236,7 @@ function voltecPackingHTML(order){
  const date=new Date(o.created),shownDate=isNaN(date.getTime())?'':date.toLocaleDateString('en-US');
  const lines=o.lines.map(l=>'<tr><td><strong>'+esc(l.part)+'</strong><small>'+esc(l.description)+'</small></td>'+
   '<td>'+esc(l.code||'-')+'</td><td>'+l.ordered+'</td><td>'+l.shipped+'</td><td>'+l.backordered+'</td>'+
-  '<td>'+(l.casesPulled==null?'—':l.casesPulled)+'</td><td>'+(l.weightLb==null?'—':(l.weightEstimated?'~':'')+l.weightLb.toFixed(2))+(l.perCaseWeightLb===null?'':'<small>'+l.perCaseWeightLb.toFixed(2)+' lb/case</small>')+'</td></tr>').join('');
+  '<td>'+(l.casesPulled==null?'—':l.casesPulled)+'</td></tr>').join('');
  return '<div class="voltec-fallback">'+
   '<div class="voltec-fallback-head"><div><strong>CAHABA SALES GROUP</strong><small>113 45th Place North · Birmingham, AL 35222</small></div><h2>PACKING SLIP</h2></div>'+
   '<div class="voltec-fallback-meta"><div><small>CSG SO #</small><strong>'+esc(o.number)+'</strong></div>'+
@@ -264,19 +245,14 @@ function voltecPackingHTML(order){
   '<div class="voltec-fallback-address"><div><small>SHIP FROM</small><strong>Cahaba Sales Group</strong><p>113 45th Place North<br>Birmingham, AL 35222</p></div>'+
   '<div><small>SHIP TO</small><strong>'+esc(o.recipient)+'</strong><p>'+[o.street,[o.city,o.state,o.zip].filter(Boolean).join(' ')].filter(Boolean).map(esc).join('<br>')+'</p></div></div>'+
   '<div class="voltec-fallback-caption">Order date: '+esc(shownDate)+(o.job?' · Job: '+esc(o.job):'')+'</div>'+
-  '<table class="voltec-fallback-table"><thead><tr><th>PART / DESCRIPTION</th><th>CODE</th><th>ORDERED</th><th>SHIPPED</th><th>B/O</th><th>CASES</th><th>TOTAL LB</th></tr></thead><tbody>'+lines+'</tbody></table>'+
+  '<table class="voltec-fallback-table"><thead><tr><th>PART / DESCRIPTION</th><th>CODE</th><th>ORDERED</th><th>SHIPPED</th><th>B/O</th><th>CASES</th></tr></thead><tbody>'+lines+'</tbody></table>'+
   '<div class="voltec-fallback-total">TOTALS · '+summ.ordered+' ordered · '+summ.shipped+' shipped · '+summ.backordered+
-  ' backordered'+(summ.casesKnown?' · '+summ.knownCases+' known cases':'')+
-  (summ.weightsKnown?' · '+summ.knownLb.toFixed(2)+' lb (known lines)':'')+'</div>'+
-  '<div class="voltec-fallback-total"><strong>SHIPPING: '+(shipping.shippingMethod==='pallets'?shipping.palletCount+' pallet(s)':'Cartons')+
-  ' · Actual boxes: '+(shipping.shippingCartons===null?'not recorded':shipping.shippingCartons)+
-  (shipping.cartonsManuallySet?' (adjusted)':' (from pulled cases)')+'</strong>'+
-  ' · Item weight: '+(shipping.itemsWeightLb===null?'unknown':shipping.itemsWeightLb.toFixed(2)+' lb')+
-  ' · Pallet weight: '+shipping.palletWeightLb.toFixed(2)+' lb'+
-  ' · '+(shipping.manualTotalWeightLb!==null
-    ?'Manual FINAL shipping weight: '+shipping.manualTotalWeightLb.toFixed(2)+' lb (includes pallets)'
-    :shipping.grandTotalLb===null?'Known weight so far: '+shipping.knownCombinedLb.toFixed(2)+' lb (some items unweighed)'
-    :'Total shipping weight: '+shipping.grandTotalLb.toFixed(2)+' lb')+'</div>'+
+  ' backordered'+(summ.casesKnown?' · '+summ.knownCases+' cases pulled':'')+'</div>'+
+  '<div class="voltec-fallback-total"><strong>SHIPPING: '+
+  (shipping.shippingMethod==='pallets'?shipping.palletCount+' pallet(s)':'Cartons')+
+  ' · Actual boxes: '+(shipping.shippingCartons===null?'not entered':shipping.shippingCartons)+
+  '</strong> · Final shipping weight (manual): '+
+  (shipping.manualTotalWeightLb===null?'Not entered':shipping.manualTotalWeightLb.toFixed(2)+' lb')+'</div>'+
   (o.notes?'<p class="voltec-fallback-notes">'+esc(o.notes)+'</p>':'')+'</div>';
 }
 if(typeof window!=='undefined')window.voltecPackingHTML=voltecPackingHTML;
