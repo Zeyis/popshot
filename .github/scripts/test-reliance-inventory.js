@@ -63,7 +63,7 @@ const {packingEditInitial,packingEditPayload,packingEditComputed}=require('../..
  assert(voltecPackingHTML(saved).includes('RELIANCE SALES ORDER #'));
  assert(voltecPackingHTML(saved).includes('REL-SO-101'));
  assert(voltecPackingHTML(saved).includes('Actual boxes: 5'));
- assert(voltecPackingHTML(saved).includes('Final shipping weight (manual): 212.00 lb'));
+ assert(voltecPackingHTML(saved).includes('Final shipping weight: 212.00 lb (override)'));
  const pdf=await PDFLib.PDFDocument.load(await voltecPackingBuildPDF(saved,{pdfLib:PDFLib}));
  assert.equal(pdf.getPageCount(),1);
  assert.equal(pdf.getPages()[0].getWidth(),612);
