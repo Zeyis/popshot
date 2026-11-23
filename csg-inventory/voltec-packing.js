@@ -32,6 +32,7 @@ function voltecPackingNormalize(raw){
   palletCount:raw.shippingMethod==='pallets'?(Number(raw.palletCount)||0):0,
   shippingCartons:raw.shippingCartons==null||raw.shippingCartons===''?null:Number(raw.shippingCartons),
   manualTotalWeightLb:raw.manualTotalWeightLb==null||raw.manualTotalWeightLb===''?null:Number(raw.manualTotalWeightLb),
+  boxWeightsLb:Array.isArray(raw.boxWeightsLb)?raw.boxWeightsLb.map(w=>w==null?'':w):[],
   lines};
 }
 function voltecPackingSummary(lines){
@@ -46,18 +47,26 @@ function voltecPackingSummary(lines){
 function voltecPackingShippingTotals(order,itemsSummary){
  const isPallets=order.shippingMethod==='pallets';
  const palletCount=isPallets?Number(order.palletCount)||0:0;
- const palletWeightLb=palletCount*35; // Informational pallet tare only; do not add to the final weight.
+ const palletWeightLb=palletCount*35;
  const manualCartons=order.shippingCartons!==null&&order.shippingCartons!==undefined;
  const knownCaseCounts=order.lines.map(line=>line.casesPulled);
  const autoCartons=knownCaseCounts.length>0&&knownCaseCounts.every(c=>Number.isSafeInteger(c)&&c>=0)
   ?knownCaseCounts.reduce((n,c)=>n+c,0):null;
  const shippingCartons=manualCartons?order.shippingCartons:autoCartons;
- const manualTotalWeightLb=order.manualTotalWeightLb===null||order.manualTotalWeightLb===undefined
-  ?null:Number(order.manualTotalWeightLb);
+ const manualTotalWeightLb=order.manualTotalWeightLb==null?null:Number(order.manualTotalWeightLb);
+ const boxWeightsLb=Array.isArray(order.boxWeightsLb)?order.boxWeightsLb:[];
+ const weightsValid=boxWeightsLb.every(w=>w===null||w===''||
+  (Number.isFinite(Number(w))&&Number(w)>=0));
+ const entered=boxWeightsLb.filter(w=>w!==null&&w!=='').length;
+ const complete=weightsValid&&shippingCartons!==null&&shippingCartons>0&&
+  boxWeightsLb.length===shippingCartons&&entered===shippingCartons;
+ const boxTotalWeightLb=complete?Math.round(boxWeightsLb.reduce((n,w)=>n+Number(w),0)*100)/100:null;
+ const calculatedTotalLb=boxTotalWeightLb===null?null:Math.round((boxTotalWeightLb+palletWeightLb)*100)/100;
  return {shippingMethod:isPallets?'pallets':'cartons',palletCount,palletWeightLb,
   shippingCartons,cartonsManuallySet:manualCartons,manualTotalWeightLb,
-  itemsWeightLb:null,allWeightsKnown:false,knownCombinedLb:null,calculatedTotalLb:null,
-  grandTotalLb:manualTotalWeightLb};
+  boxWeightsLb,boxWeightsEntered:entered,boxTotalWeightLb,
+  itemsWeightLb:null,allWeightsKnown:false,knownCombinedLb:null,calculatedTotalLb,
+  grandTotalLb:manualTotalWeightLb!==null?manualTotalWeightLb:calculatedTotalLb};
 }
 async function voltecPackingBuildPDF(original,options={}){
  const {PDFDocument,StandardFonts,rgb}=options.pdfLib||globalThis.PDFLib||await bjPdfLoadLibrary();
@@ -203,15 +212,41 @@ async function voltecPackingBuildPDF(original,options={}){
  put('ACTUAL BOXES: '+(shipping.shippingCartons===null?'Not entered':shipping.shippingCartons)+
   '   |   SHIPS: '+(shipping.shippingMethod==='pallets'?shipping.palletCount+' pallet(s)':'Cartons'),
   left+10,summaryTop-83,8,true,C.dark,510);
- put('FINAL SHIPPING WEIGHT (MANUAL): '+
-  (shipping.manualTotalWeightLb===null?'Not entered':shipping.manualTotalWeightLb.toFixed(2)+' lb'),
+ put('FINAL SHIPPING WEIGHT: '+
+  (shipping.grandTotalLb===null?'Not entered':shipping.grandTotalLb.toFixed(2)+' lb')+
+  (shipping.manualTotalWeightLb!==null?' (override)':''),
   left+10,summaryTop-101,9.5,true,C.dark,512);
- let after=summaryTop-126;
- if(summary.casesKnown>0&&summary.casesKnown<saved.lines.length)
+ let after=summaryTop-125;
+ if(shipping.boxWeightsLb.length){
+  if(after<115){pageHeader(false);after=y-20}
+  put('INDIVIDUAL BOX WEIGHTS (ENTERED)',left,after,8.2,true,C.dark,510);
+  after-=15;
+  for(let i=0;i<shipping.boxWeightsLb.length;i++){
+   if(after<91){pageHeader(false);after=y-20}
+   const w=shipping.boxWeightsLb[i];
+   put('Box '+(i+1)+': '+(w===null||w===''?'Not entered':Number(w).toFixed(2)+' lb'),left+9,after,7.7,false,C.dark,250);
+   after-=11;
+  }
+  if(shipping.boxTotalWeightLb!==null){
+   if(after<90){pageHeader(false);after=y-20}
+   put('Box weight subtotal: '+shipping.boxTotalWeightLb.toFixed(2)+' lb',left+9,after,8,true,C.dark,360);
+   after-=13;
+  }
+  if(shipping.palletCount){
+   if(after<90){pageHeader(false);after=y-20}
+   put('Pallet tare: '+shipping.palletCount+' x 35 lb = '+shipping.palletWeightLb.toFixed(2)+' lb',
+    left+9,after,8,false,C.mid,400);
+   after-=13;
+  }
+ }
+ if(summary.casesKnown>0&&summary.casesKnown<saved.lines.length){
+  if(after<91){pageHeader(false);after=y-20}
   put('* Case count includes only lines with known cases.',left,after,7.1,false,C.mid,524);
+  after-=13;
+ }
  if(saved.notes){
-  after-=22;
-  if(after<88){pageHeader(false);after=y-20}
+  after-=18;
+  if(after<115){pageHeader(false);after=y-20}
   put('DELIVERY / HANDLING NOTES',left,after,8.4,true,C.mid);
   const noteLines=wrap(saved.notes,510,normal,7.7,3);
   noteLines.forEach((note,i)=>put(note,left,after-16-i*12,7.7,false,C.dark,516));
@@ -251,8 +286,14 @@ function voltecPackingHTML(order){
   '<div class="voltec-fallback-total"><strong>SHIPPING: '+
   (shipping.shippingMethod==='pallets'?shipping.palletCount+' pallet(s)':'Cartons')+
   ' · Actual boxes: '+(shipping.shippingCartons===null?'not entered':shipping.shippingCartons)+
-  '</strong> · Final shipping weight (manual): '+
-  (shipping.manualTotalWeightLb===null?'Not entered':shipping.manualTotalWeightLb.toFixed(2)+' lb')+'</div>'+
+  '</strong> · Final shipping weight: '+
+  (shipping.grandTotalLb===null?'Not entered':shipping.grandTotalLb.toFixed(2)+' lb')+
+  (shipping.manualTotalWeightLb!==null?' (override)':'')+'</div>'+
+  (shipping.boxWeightsLb.length?'<div class="voltec-fallback-total"><strong>INDIVIDUAL BOX WEIGHTS</strong><div>'+
+   shipping.boxWeightsLb.map((w,i)=>'Box '+(i+1)+': '+(w==null||w===''?'Not entered':Number(w).toFixed(2)+' lb')).join(' · ')+
+   '</div>'+(shipping.boxTotalWeightLb!==null?'<div>Box weight subtotal: '+shipping.boxTotalWeightLb.toFixed(2)+' lb</div>':'')+
+   (shipping.palletCount?'<div>Pallet tare: '+shipping.palletCount+' × 35 lb = '+shipping.palletWeightLb.toFixed(2)+' lb</div>':'')+
+   '</div>':'')+
   (o.notes?'<p class="voltec-fallback-notes">'+esc(o.notes)+'</p>':'')+'</div>';
 }
 if(typeof window!=='undefined')window.voltecPackingHTML=voltecPackingHTML;
