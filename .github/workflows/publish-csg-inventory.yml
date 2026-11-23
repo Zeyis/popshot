@@ -12,6 +12,7 @@ on:
       - '.github/scripts/test-packing-pdf.js'
       - '.github/scripts/test-voltec-packing.js'
       - '.github/scripts/test-packing-edit.js'
+      - 'csg-inventory/packing-box-weights.js'
       - '.github/scripts/test-custom-voltec-order.js'
       - '.github/scripts/test-reliance-inventory.js'
       - '.github/scripts/test-inventory-report.js'
@@ -56,6 +57,7 @@ jobs:
           node --check csg-inventory/inventory-report.js
           node --check csg-inventory/packing-pdf.js
           node --check csg-inventory/packing-shipment.js
+          node --check csg-inventory/packing-box-weights.js
           node --check csg-inventory/packing-edit.js
           node --check csg-inventory/custom-order.js
           node --check csg-inventory/voltec-packing.js
