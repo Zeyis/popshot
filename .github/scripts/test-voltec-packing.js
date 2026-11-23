@@ -14,7 +14,7 @@ const {voltecPackingNormalize,voltecPackingSummary,voltecPackingShippingTotals,
  const editorCode=fs.readFileSync('csg-inventory/packing-edit.js','utf8');
  const packingCode=fs.readFileSync('csg-inventory/packing-pdf.js','utf8');
  assert(html.includes('id="orderManualTotalWeight"'));
- assert(html.includes('Final Shipping Weight (lb) — Enter Manually'));
+ assert(html.includes('Override Final Shipping Weight (lb)'));
  assert(html.includes('id="orderShippingMethod"'));
  assert(html.includes('id="orderPalletCount"'));
  assert(html.includes('id="orderShippingCartons"'));
@@ -80,7 +80,7 @@ const {voltecPackingNormalize,voltecPackingSummary,voltecPackingShippingTotals,
  assert.equal(blank.grandTotalLb,null,'NO weight fallback, even with legacy per-case weights');
  assert.equal(blank.calculatedTotalLb,null);
  const emptyHtml=voltecPackingHTML(original);
- assert(emptyHtml.includes('Final shipping weight (manual): Not entered'));
+ assert(emptyHtml.includes('Final shipping weight: Not entered'));
  assert(!emptyHtml.includes('147.00'));
  assert(!emptyHtml.includes('217.00'));
  assert(!emptyHtml.includes('Known weight so far'));
@@ -90,11 +90,24 @@ const {voltecPackingNormalize,voltecPackingSummary,voltecPackingShippingTotals,
  assert.equal(manual.grandTotalLb,200,'Manual final weight is authoritative');
  assert.equal(manual.palletWeightLb,70,'Pallets shown but not added to manual total');
  const manualHtml=voltecPackingHTML(manualOrder);
- assert(manualHtml.includes('Final shipping weight (manual): 200.00 lb'));
+ assert(manualHtml.includes('Final shipping weight: 200.00 lb (override)'));
  assert(!manualHtml.includes('270.00'));
  assert(!manualHtml.includes('217.00'));
  assert(!manualHtml.includes('Estimated from'));
  assert.equal(voltecPackingShippingTotals(voltecPackingNormalize({...original,manualTotalWeightLb:0}),summary).grandTotalLb,0);
+ const measuredOrder={...original,manualTotalWeightLb:null,boxWeightsLb:[20,21,22,23,24]};
+ const measuredTotals=voltecPackingShippingTotals(voltecPackingNormalize(measuredOrder),summary);
+ assert.equal(measuredTotals.boxTotalWeightLb,110);
+ assert.equal(measuredTotals.calculatedTotalLb,180,'5 manually weighed boxes + 2 pallets × 35 lb');
+ assert.equal(measuredTotals.grandTotalLb,180);
+ const measuredHTML=voltecPackingHTML(measuredOrder);
+ assert(measuredHTML.includes('Box 1: 20.00 lb'));
+ assert(measuredHTML.includes('Box 5: 24.00 lb'));
+ assert(measuredHTML.includes('Final shipping weight: 180.00 lb'));
+ assert(measuredHTML.includes('Pallet tare: 2 × 35 lb = 70.00 lb'));
+ const measuredPDF=await PDFLib.PDFDocument.load(await voltecPackingBuildPDF(measuredOrder,{pdfLib:PDFLib}));
+ assert.equal(measuredPDF.getPages()[0].getWidth(),612);
+
  const bytes=await voltecPackingBuildPDF(manualOrder,{pdfLib:PDFLib});
  const pdf=await PDFLib.PDFDocument.load(bytes);
  assert.equal(pdf.getPageCount(),1);
