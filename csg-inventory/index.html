@@ -145,16 +145,16 @@
   <p class="sub" style="margin:5px 0 0">Editable: 7 cases can be double-packed into 5 boxes. Leave blank to use the case count automatically.</p>
  </div>
  <div style="margin-top:12px;max-width:370px">
-  <label for="orderManualTotalWeight">Manual TOTAL shipping weight (lb) · Optional</label>
+  <label for="orderManualTotalWeight"><strong>Final Shipping Weight (lb) — Enter Manually</strong></label>
   <input id="orderManualTotalWeight" type="number" min="0" max="1000000" step="0.01" inputmode="decimal"
-   placeholder="Enter final weight directly" oninput="packingShipmentSummary()">
-  <p class="sub" style="margin:5px 0 0">If entered, this becomes the final shipping weight on the PDF, including pallets. No extra 35 lb is added. Leave blank for automatic calculation.</p>
+   placeholder="Type final shipment weight in lb" oninput="packingShipmentSummary()">
+  <p class="sub" style="margin:5px 0 0">This is the only shipping weight printed on the PDF. Include pallets and packaging in your number. Leave blank if the shipment has not been weighed — no weight will be estimated.</p>
  </div>
  <div class="row" style="margin-top:10px;gap:9px;flex-wrap:wrap">
-  <button type="button" id="addPalletWeightButton" class="slim" onclick="packingAddPalletWeight()">+ Add Pallet Weight (35 lb)</button>
-  <span class="sub" style="margin:0">Each tap adds one pallet and 35 lb to the total.</span>
+  <button type="button" id="addPalletWeightButton" class="slim" onclick="packingAddPalletWeight()">+ Add Pallet (35 lb tare reference)</button>
+  <span class="sub" style="margin:0">Each tap adds one pallet. Include pallet weight in the manual final weight you enter.</span>
  </div>
- <p class="sub" style="margin:8px 0 0">Pallet shipping adds <strong>35 lb for each pallet</strong> to the item weight total. Carton shipping adds no pallet weight.</p>
+ <p class="sub" style="margin:8px 0 0">Each pallet is typically <strong>35 lb</strong>, but the app will never add it automatically to your manual final weight.</p>
 </div></div><div class="grid2"><div><label>Customer / company *</label><input id="orderCustomer" placeholder="Customer name"></div><div><label>Job / project</label><input id="orderJob" placeholder="Project name"></div><div><label>Attention / recipient</label><input id="orderAttention"></div><div><label>Street address</label><input id="orderStreet"></div><div><label>City</label><input id="orderCity"></div><div><label>State</label><input id="orderState" placeholder="AL" maxlength="30" autocapitalize="characters"></div><div><label>ZIP code</label><input id="orderZip" inputmode="numeric"></div></div><label>Notes</label><textarea id="orderNotes" rows="2"></textarea></div>
 <div class="card"><h2 style="margin-top:0;font-size:18px">Pull items</h2><input id="orderSearch" oninput="renderMatches()" placeholder="Search EiKO parts only" aria-label="Search parts for selected order type"><div id="orderMatches" class="results"></div>
 <div class="custom-part-action hidden" id="manualOrderControls"><button type="button" class="slim" id="manualOrderOpenButton" onclick="manualOrderOpen()">+ Add Custom Part Manually</button>
@@ -491,9 +491,9 @@ async function placeOrder(){
   if(shipped<1)throw Error('At least one unit must be shipped to create a packing list.');
   if(!confirm(hasShipping
    ?'Create '+brandLabel(activeOrderDivision)+' packing slip?\n\n'+ordered+' units ordered · '+shipped+' shipped · '+(ordered-shipped)+' backordered.'+
-     '\nShipping: '+(shipping.shippingMethod==='pallets'?shipping.palletCount+' pallet(s), adding '+(shipping.palletCount*35)+' lb':'Cartons, no pallet weight')+
+     '\nShipping: '+(shipping.shippingMethod==='pallets'?shipping.palletCount+' pallet(s)':'Cartons')+
      (shipping.shippingCartons!==null?' · '+shipping.shippingCartons+' actual shipping boxes':'')+
-     (shipping.manualTotalWeightLb!==null?'\nManual final shipping weight: '+shipping.manualTotalWeightLb+' lb (includes pallets)':'')+
+     '\nFinal shipping weight: '+(shipping.manualTotalWeightLb===null?'Not entered':shipping.manualTotalWeightLb+' lb (entered manually; includes pallets)')+
      '\n\nOnly warehouse-stock items will have their shipped units deducted; custom parts are packing-list-only.'
    :'Create this order and deduct '+shipped+' units from shared inventory?'))return;
   const btn=$('placeOrderButton');btn.disabled=true;
