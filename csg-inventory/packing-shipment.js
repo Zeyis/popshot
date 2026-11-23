@@ -21,10 +21,10 @@ function packingShipmentDefault(item,division,ordered){
  const shipped=Math.min(Number(item.qty)||0,Number(ordered)||0);
  const casePack=spec?.casePack||'';
  const casesPulled=casePack&&shipped>0&&shipped%casePack===0?shipped/casePack:'';
- const weightLb=spec?.caseWeightLb||''; // Editable weight PER CASE, not line total.
+ const weightLb=''; // Shipment weight is entered once, manually, at order level.
  return {ordered:Number(ordered),shipped,casePack,casesPulled,weightLb,
   caseTouched:false,shippedTouched:false,weightTouched:false,casePackTouched:false,
-  weightEstimated:weightLb!==''&&!!spec?.caseWeightLb,
+  weightEstimated:false,
   source:spec?.source||'',sourceUrl:spec?.url||'',caseWeightLb:spec?.caseWeightLb||null,
   suggestedCasePack:spec?.casePack||null};
 }
@@ -37,11 +37,7 @@ function packingShipmentUpdateAuto(v){
  if(!v.caseTouched){
   v.casesPulled=v.casePack&&v.shipped>0&&v.shipped%v.casePack===0?v.shipped/v.casePack:'';
  }
- if(!v.weightTouched){
-  v.weightLb=v.caseWeightLb&&v.casePack===v.suggestedCasePack
-   ?v.caseWeightLb:'';
-  v.weightEstimated=v.weightLb!==''&&!!v.caseWeightLb;
- }
+ // Case packs can suggest case counts; weights are never inferred from product specs.
 }
 function packingShipmentOrderedChanged(key,item,ordered){
  const v=packingShipmentGet(key,item,ordered),previous=v.ordered;
@@ -61,23 +57,14 @@ function packingShipmentSet(key,field,raw){
   v.casePack=n;v.casePackTouched=true;v.caseTouched=false;
  }else if(field==='casesPulled'){
   v.casesPulled=n;v.caseTouched=true;
- }else if(field==='weightLb'){
-  v.weightLb=n;v.weightTouched=true;v.weightEstimated=false;
  }else return;
  if(field==='shipped'||field==='casePack'||field==='casesPulled')packingShipmentUpdateAuto(v);
  const suffix=key.replace(/[^A-Za-z0-9]/g,'_');
  const back=document.getElementById('shipBack_'+suffix);
  if(back)back.textContent=Number.isSafeInteger(Number(v.shipped))?Math.max(0,v.ordered-Number(v.shipped)).toLocaleString():'—';
- for(const name of ['casesPulled','weightLb']){
+ for(const name of ['casesPulled']){
   const input=document.getElementById('ship_'+name+'_'+suffix);
   if(input&&name!==field)input.value=v[name]===''?'':String(v[name]);
- }
- const note=document.getElementById('shipWeightNote_'+suffix);
- if(note){
-  const total=packingShipmentWeightTotal(v);
-  note.textContent=total===null
-   ?'Enter cases pulled and weight per case to calculate total weight.'
-   :(v.weightEstimated?'Estimated':'Calculated')+' line weight: '+total.toFixed(2)+' lb ('+v.casesPulled+' × '+v.weightLb+' lb/case).';
  }
  if(typeof packingShipmentSummary==='function')packingShipmentSummary();
 }
@@ -104,14 +91,9 @@ function packingShipmentMarkup(key,item,ordered){
   '<label>Backordered <span class="ship-readonly" id="shipBack_'+suffix+'">'+Math.max(0,v.ordered-Number(v.shipped||0))+'</span></label>'+
   '<label>Cases pulled '+input('casesPulled')+'</label>'+
   '<label>Units / case '+input('casePack')+'</label>'+
-  '<label>Weight / case (lb) '+input('weightLb',{decimal:true})+'</label>'+
-  '</div><div class="packing-shipment-help"><span>'+
-  (spec?'Case pack sourced from <a target="_blank" rel="noopener noreferrer" href="'+esc(spec.url)+'">'+esc(spec.source)+'</a>. ':'Case pack not verified; enter if known. ')+
-  '</span><span id="shipWeightNote_'+suffix+'">'+
-  (packingShipmentWeightTotal(v)===null
-    ?'Enter cases pulled and weight per case to calculate total.'
-    :(v.weightEstimated?'Estimated':'Calculated')+' line weight: '+packingShipmentWeightTotal(v).toFixed(2)+' lb ('+v.casesPulled+' × '+v.weightLb+' lb/case).')+
-  '</span></div></article>';
+  '</div><div class="packing-shipment-help">'+
+  (spec?'Case pack sourced from <a target="_blank" rel="noopener noreferrer" href="'+esc(spec.url)+'">'+esc(spec.source)+'</a>. ':'Enter the case pack if known. ')+
+  'Final shipment weight is entered manually below, not calculated from cases.</div></article>';
 }
 function packingShipmentLine(key,item,ordered){
  const v=packingShipmentGet(key,item,ordered);
@@ -120,21 +102,17 @@ function packingShipmentLine(key,item,ordered){
   throw Error('Check shipped quantity for '+item.part+'. Shipped must not exceed ordered or available inventory.');
  const casesPulled=v.casesPulled===''?null:Number(v.casesPulled);
  const casePack=v.casePack===''?null:Number(v.casePack);
- const perCaseWeightLb=v.weightLb===''?null:Number(v.weightLb);
- const weightLb=packingShipmentWeightTotal(v);
- if(casesPulled!==null&&(!Number.isSafeInteger(casesPulled)||casesPulled<0))throw Error('Cases pulled must be a whole number for '+item.part+'.');
- if(casePack!==null&&(!Number.isSafeInteger(casePack)||casePack<1))throw Error('Units per case must be a positive whole number for '+item.part+'.');
- if(perCaseWeightLb!==null&&(!Number.isFinite(perCaseWeightLb)||perCaseWeightLb<0))
-  throw Error('Check weight per case for '+item.part+'.');
- // An unknown pulled-case count leaves total weight blank; do not block the order.
+ if(casesPulled!==null&&(!Number.isSafeInteger(casesPulled)||casesPulled<0))
+  throw Error('Cases pulled must be a whole number for '+item.part+'.');
+ if(casePack!==null&&(!Number.isSafeInteger(casePack)||casePack<1))
+  throw Error('Units per case must be a positive whole number for '+item.part+'.');
+ const perCaseWeightLb=null,weightLb=null;
  const [division,id]=key.split(':');
  return {division,id:item.manual?item.id:Number(id),
   ...(item.manual?{manual:true,part:item.part,code:item.code,desc:item.desc}:{}),
   qty:Number(ordered),shipped,casesPulled,casePack,
   perCaseWeightLb,weightLb,
-  weightEstimated:weightLb!==null&&v.weightEstimated,
-  weightSource:weightLb!==null?(v.weightEstimated?v.source:'Manual'):v.casePackTouched?'Manual':v.source,
-  weightSourceUrl:weightLb!==null&&v.weightEstimated?v.sourceUrl:''};
+  weightEstimated:false,weightSource:'',weightSourceUrl:''};
 }
 const PACKING_PALLET_TARE_LB=35;
 function packingShippingCalculation(method,palletCount,itemsWeightLb){
@@ -215,33 +193,26 @@ function packingShippingReset(){
 }
 function packingShipmentSummary(){
  if(typeof cart==='undefined')return;
- let ordered=0,shipped=0,backordered=0,cases=0,weight=0,hasWeight=false;
+ let ordered=0,shipped=0,backordered=0,cases=0;
  for(const [key,qty] of Object.entries(cart)){
-  const v=packingShipmentDraft[key],q=Number(qty)||0,s=Number(v?.shipped??q);
-  ordered+=q;shipped+=s;backordered+=Math.max(0,q-s);
-  if(v?.casesPulled!=='')cases+=Number(v?.casesPulled)||0;
-  const lineWeight=packingShipmentWeightTotal(v);
-  if(lineWeight!==null){weight+=lineWeight;hasWeight=true}
+  const v=packingShipmentDraft[key],q=Number(qty)||0,n=Number(v?.shipped??q);
+  ordered+=q;shipped+=n;backordered+=Math.max(0,q-n);
+  if(v?.casesPulled!==''&&v?.casesPulled!=null)cases+=Number(v.casesPulled)||0;
  }
- const target=document.getElementById('cartTotal');
  const mode=document.getElementById('orderShippingMethod')?.value||'cartons';
- const pallets=document.getElementById('orderPalletCount')?.value||'';
- const palletCount=mode==='pallets'&&/^\d+$/.test(pallets)?Number(pallets):0;
- const palletLb=mode==='pallets'&&Number.isSafeInteger(palletCount)&&palletCount>0?palletCount*PACKING_PALLET_TARE_LB:0;
+ const palletRaw=document.getElementById('orderPalletCount')?.value||'';
+ const pallets=mode==='pallets'&&/^\d+$/.test(palletRaw)?Number(palletRaw):0;
  const knownCases=Object.keys(cart).filter(k=>!k.startsWith('eiko:')).map(k=>packingShipmentDraft[k]?.casesPulled??null);
  let boxes={cartons:null,manual:false};
  try{boxes=packingShippingCartonCount(knownCases,document.getElementById('orderShippingCartons')?.value??'')}catch{}
- const manualInput=document.getElementById('orderManualTotalWeight')?.value??'';
- const manual=manualInput===''?null:Number(manualInput);
- const manualValid=manual!==null&&Number.isFinite(manual)&&manual>=0;
- const base=ordered+' ordered · '+shipped+' shipped · '+backordered+' backordered'+(cases?' · '+cases+' cases pulled':'')+
-   (boxes.cartons!==null?' · '+boxes.cartons+' shipping boxes'+(boxes.manual?' (adjusted)':' (from cases)'):'');
- if(target)target.textContent=base+
-  (manualValid
-   ?' · Manual FINAL shipping weight: '+manual.toFixed(2)+' lb (includes pallets; no weight added)'
-   :(hasWeight?' · '+weight.toFixed(2)+' lb item weight':'')+
-     (mode==='pallets'?' · '+(palletCount>0?palletCount+' pallet(s) × 35 lb = '+palletLb+' lb added':'Enter pallet count'):'')+
-     (hasWeight?' · '+(weight+palletLb).toFixed(2)+' lb calculated total':palletLb?' · '+palletLb+' lb pallet weight (item weight unknown)':''));
+ const raw=document.getElementById('orderManualTotalWeight')?.value??'';
+ const manual=raw.trim()!==''&&Number.isFinite(Number(raw))&&Number(raw)>=0?Number(raw):null;
+ const target=document.getElementById('cartTotal');
+ if(target)target.textContent=ordered+' ordered · '+shipped+' shipped · '+backordered+' backordered'+
+  (cases?' · '+cases+' cases pulled':'')+
+  (boxes.cartons!==null?' · '+boxes.cartons+' shipping boxes':'')+
+  (mode==='pallets'?' · '+(pallets||'Enter')+' pallet(s)':'')+
+  ' · Final shipping weight: '+(manual===null?'Not entered':manual.toFixed(2)+' lb (manual, includes packaging)');
 }
 function packingShipmentClear(){
  for(const k of Object.keys(packingShipmentDraft))delete packingShipmentDraft[k];
