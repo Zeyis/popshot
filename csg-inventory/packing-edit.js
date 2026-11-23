@@ -61,8 +61,7 @@ function packingEditComputed(draft){
   shippingCartons:boxes.cartons,cartonsManuallySet:boxes.manual,goodsWeightLb,
   pallets,palletWeightLb:tare,knownWeightLb:goodsWeightLb+tare,allKnown,
   manualTotalWeightLb,
-  totalWeightLb:manualTotalWeightLb!==null?manualTotalWeightLb:
-   allKnown?Math.round((goodsWeightLb+tare)*100)/100:null};
+  totalWeightLb:manualTotalWeightLb};
 }
 function packingEditTextField(label,key,options={}){
  const d=packingEditDraft;
@@ -92,8 +91,7 @@ function packingEditRender(){
    packingEditNumberField(isV?'Ordered':'Shipped quantity',index,'ordered')+
    (isV?packingEditNumberField('Shipped',index,'shipped'):'')+
    (isV?packingEditNumberField('Cases pulled',index,'casesPulled')+
-    packingEditNumberField('Units / case',index,'casePack')+
-    packingEditNumberField('Weight / case (lb)',index,'perCaseWeightLb'):'')+
+    packingEditNumberField('Units / case',index,'casePack'):'')+
    '</div></article>';
  }).join('');
  el.innerHTML='<div class="packing-edit-header"><div><h2>Edit Packing List</h2><p class="sub">PO '+packingEditEscape(d.number)+
@@ -118,12 +116,12 @@ function packingEditRender(){
    '<label id="packingEditPalletLabel"'+(d.shippingMethod==='cartons'?' class="hidden"':'')+'>Number of pallets'+
    '<input type="number" min="1" max="1000" step="1" inputmode="numeric" id="packingEditPalletCount" value="'+
    packingEditEscape(d.palletCount)+'" oninput="packingEditSet(\'palletCount\',this.value)"></label></div>'+
-   '<button type="button" class="slim" style="margin-top:10px" onclick="packingEditAddPallet()">+ Add Pallet Weight (35 lb)</button>'+
-   '<div style="margin-top:14px;max-width:370px"><label>Manual TOTAL shipping weight (lb) · Optional'+
+   '<button type="button" class="slim" style="margin-top:10px" onclick="packingEditAddPallet()">+ Add Pallet (35 lb tare reference)</button>'+
+   '<div style="margin-top:14px;max-width:370px"><label>Final Shipping Weight (lb) — Enter Manually'+
     '<input type="number" min="0" max="1000000" step="0.01" inputmode="decimal"'+
     ' placeholder="Enter final weight" value="'+packingEditEscape(d.manualTotalWeightLb)+
     '" oninput="packingEditSet(\'manualTotalWeightLb\',this.value)"></label>'+
-    '<p class="sub">Overrides the calculated total and already includes pallets. Leave blank to calculate automatically.</p></div>':'')+
+    '<p class="sub">This is the only shipping weight on the packing slip. Include pallets and packaging. Blank means not entered — no automatic estimate.</p></div>':'')+
   '<h3>Original order lines</h3><p class="sub">Part numbers stay fixed. Save a new order to add or remove parts.</p>'+
   lines+packingEditTextField('Notes','notes',{optional:true,multiline:true})+
   '<div id="packingEditTotals" class="packing-edit-summary"></div>'+
@@ -134,15 +132,13 @@ function packingEditRender(){
 function packingEditSummary(){
  const host=document.getElementById('packingEditTotals');
  if(!host||!packingEditDraft)return;
- const s=packingEditComputed(packingEditDraft);
- host.textContent=s.ordered+' ordered · '+s.shipped+' shipped · '+Math.max(0,s.backordered)+
-  ' backordered · '+s.cases+' cases pulled'+
-  (packingEditDraft.isVoltec&&s.shippingCartons!==null?' · '+s.shippingCartons+' shipping boxes'+(s.cartonsManuallySet?' (adjusted)':''):'')+
-  (packingEditDraft.isVoltec?' · '+s.pallets+' pallets (+'+s.palletWeightLb+' lb)':'')+
-  ' · '+(s.manualTotalWeightLb!==null
-   ?'Manual FINAL shipping weight: '+s.totalWeightLb.toFixed(2)+' lb (pallets included)'
-   :(s.allKnown?'Calculated total: ':'Known weight: ')+s.knownWeightLb.toFixed(2)+' lb'+
-     (!s.allKnown?' (some weights unknown)':''));
+ const d=packingEditDraft,sum=packingEditComputed(d);
+ host.textContent=sum.ordered+' ordered · '+sum.shipped+' shipped · '+Math.max(0,sum.backordered)+
+  ' backordered · '+sum.cases+' cases pulled'+
+  (d.isVoltec&&sum.shippingCartons!==null?' · '+sum.shippingCartons+' shipping boxes':'')+
+  (d.isVoltec?' · '+sum.pallets+' pallets':'')+
+  ' · Final shipping weight: '+(sum.manualTotalWeightLb===null
+   ?'Not entered':sum.manualTotalWeightLb.toFixed(2)+' lb (manual, includes packaging)');
 }
 function packingEditAddPallet(){
  if(!packingEditDraft||!packingEditDraft.isVoltec)return;
