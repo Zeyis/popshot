@@ -58,12 +58,12 @@ const {packingEditInitial,packingEditPayload,packingEditComputed}=require('../..
  assert.equal(summary.knownCases,7);
  assert.equal(totals.shippingCartons,5);
  assert.equal(totals.palletWeightLb,70);
- assert.equal(totals.calculatedTotalLb,217);
- assert.equal(totals.grandTotalLb,212,"Manual final freight weight must override auto calculation");
+ assert.equal(totals.calculatedTotalLb,null,'No automatic weight for Reliance');
+ assert.equal(totals.grandTotalLb,212,"Manual entered freight weight is the only total");
  assert(voltecPackingHTML(saved).includes('RELIANCE SALES ORDER #'));
  assert(voltecPackingHTML(saved).includes('REL-SO-101'));
  assert(voltecPackingHTML(saved).includes('Actual boxes: 5'));
- assert(voltecPackingHTML(saved).includes('Manual FINAL shipping weight: 212.00 lb'));
+ assert(voltecPackingHTML(saved).includes('Final shipping weight (manual): 212.00 lb'));
  const pdf=await PDFLib.PDFDocument.load(await voltecPackingBuildPDF(saved,{pdfLib:PDFLib}));
  assert.equal(pdf.getPageCount(),1);
  assert.equal(pdf.getPages()[0].getWidth(),612);
@@ -79,6 +79,10 @@ const {packingEditInitial,packingEditPayload,packingEditComputed}=require('../..
  assert.equal(edited.shippingCartons,5);
  assert.equal(edited.manualTotalWeightLb,212);
  assert.equal(packingEditComputed(edit).totalWeightLb,212);
+ const noWeight={...saved,manualTotalWeightLb:null};
+ assert.equal(voltecPackingShippingTotals(voltecPackingNormalize(noWeight),
+  voltecPackingSummary(voltecPackingNormalize(noWeight).lines)).grandTotalLb,null,
+  'Legacy case weights never create a Reliance freight total');
  const relianceData={
   reliance:[{id:1,part:'REL-306CRK',qty:25,code:'',min:0},{id:2,part:'REL-310CRK',qty:10,code:'',min:0}],
   items:[{id:1,part:'EIKO-ONLY',qty:999}],
