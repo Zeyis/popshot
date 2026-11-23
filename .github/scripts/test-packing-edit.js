@@ -26,6 +26,28 @@ const order={
   {id:2,division:'voltec',part:'08-00513',code:'',ordered:8,shipped:8,qty:8,
    casesPulled:4,casePack:2,perCaseWeightLb:18,weightLb:72}
  ]};
+// Regression: original 09-0T676 order, 4 cases at a manually entered 38 lb each.
+const oldScreenshotOrder={
+ id:'screenshot-4-boxes',number:'CSG-2026-0015',status:'confirmed',recipient:'Customer',
+ shippingMethod:'cartons',shippingCartons:4,
+ lines:[{id:19,division:'voltec',part:'09-0T676',qty:4,ordered:4,shipped:4,
+  casesPulled:4,casePack:1,perCaseWeightLb:38,weightEstimated:false}]
+};
+const screenshotDraft=packingEditInitial(oldScreenshotOrder);
+assert.deepEqual(screenshotDraft.boxWeightsLb,['38','38','38','38']);
+assert.equal(packingEditComputed(screenshotDraft).totalWeightLb,152);
+const screenshotPayload=packingEditPayload(screenshotDraft);
+assert.deepEqual(screenshotPayload.boxWeightsLb,[38,38,38,38]);
+assert.equal(screenshotPayload.shippingCartons,4);
+const {voltecPackingHTML,voltecPackingNormalize,voltecPackingShippingTotals,voltecPackingSummary}=
+ require('../../csg-inventory/voltec-packing.js');
+const screenshotSaved={...oldScreenshotOrder,...screenshotPayload};
+const screenshotTotals=voltecPackingShippingTotals(voltecPackingNormalize(screenshotSaved),
+ voltecPackingSummary(voltecPackingNormalize(screenshotSaved).lines));
+assert.equal(screenshotTotals.grandTotalLb,152);
+assert(voltecPackingHTML(screenshotSaved).includes('Box 1: 38.00 lb'));
+assert(voltecPackingHTML(screenshotSaved).includes('Box 4: 38.00 lb'));
+assert(voltecPackingHTML(screenshotSaved).includes('Final shipping weight: 152.00 lb'));
 const d=packingEditInitial(order);
 assert.equal(d.number,order.number);
 assert.equal(d.isVoltec,true);
