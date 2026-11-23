@@ -39,28 +39,20 @@ function packingEditInitial(order){
  };
 }
 function packingEditComputed(draft){
- let ordered=0,shipped=0,cases=0,goodsWeightLb=0,known=0;
+ let ordered=0,shipped=0,cases=0;
  for(const line of draft.lines){
   ordered+=Number(line.ordered)||0;
   shipped+=Number(line.shipped)||0;
   if(line.casesPulled!=='')cases+=Number(line.casesPulled)||0;
-  if(line.perCaseWeightLb!==''&&line.casesPulled!==''){
-   const w=Number(line.perCaseWeightLb)*Number(line.casesPulled);
-   if(Number.isFinite(w)&&w>=0){goodsWeightLb+=w;known++;continue;}
-  }
-  if(line.perCaseWeightLb===''&&line.originalWeightLb!==null&&line.casesPulled===''){
-   goodsWeightLb+=line.originalWeightLb;known++;
-  }
  }
  const pallets=draft.shippingMethod==='pallets'?(Number(draft.palletCount)||0):0;
  const tare=Number.isSafeInteger(pallets)&&pallets>=0?pallets*35:0;
- const allKnown=known===draft.lines.length;
- const manualTotalWeightLb=draft.isVoltec&&draft.manualTotalWeightLb!==''?Number(draft.manualTotalWeightLb):null;
+ const manualTotalWeightLb=draft.isVoltec&&draft.manualTotalWeightLb!==''?
+  Number(draft.manualTotalWeightLb):null;
  const boxes=packingEditCartonCounter(draft.lines.map(l=>l.casesPulled),draft.shippingCartons);
  return {ordered,shipped,backordered:ordered-shipped,cases,
-  shippingCartons:boxes.cartons,cartonsManuallySet:boxes.manual,goodsWeightLb,
-  pallets,palletWeightLb:tare,knownWeightLb:goodsWeightLb+tare,allKnown,
-  manualTotalWeightLb,
+  shippingCartons:boxes.cartons,cartonsManuallySet:boxes.manual,
+  pallets,palletWeightLb:tare,manualTotalWeightLb,
   totalWeightLb:manualTotalWeightLb};
 }
 function packingEditTextField(label,key,options={}){
