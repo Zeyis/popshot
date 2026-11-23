@@ -177,8 +177,10 @@ function packingShippingDetails(){
  const counts=Object.keys(cart||{}).filter(k=>!k.startsWith('eiko:')).map(k=>packingShipmentDraft[k]?.casesPulled??null);
  const cartonResult=packingShippingCartonCount(counts,cartons);
  const manualTotalWeightLb=packingManualTotalWeight(document.getElementById('orderManualTotalWeight')?.value??'');
+ const physical=packingBoxFormTotals();
  return {shippingMethod:calc.shippingMethod,palletCount:calc.palletCount,
-  shippingCartons:cartonResult.manual?cartonResult.cartons:null,manualTotalWeightLb};
+  shippingCartons:cartonResult.manual?cartonResult.cartons:null,manualTotalWeightLb,
+  boxWeightsLb:physical.weights.slice()};
 }
 function packingShippingReset(){
  const mode=document.getElementById('orderShippingMethod');
@@ -189,10 +191,12 @@ function packingShippingReset(){
  if(cartonField)cartonField.value='';
  const manualField=document.getElementById('orderManualTotalWeight');
  if(manualField)manualField.value='';
+ if(typeof packingBoxClear==='function')packingBoxClear();
  packingShippingModeChanged();
 }
 function packingShipmentSummary(){
  if(typeof cart==='undefined')return;
+ if(typeof packingBoxWeightsRender==='function')packingBoxWeightsRender();
  let ordered=0,shipped=0,backordered=0,cases=0;
  for(const [key,qty] of Object.entries(cart)){
   const v=packingShipmentDraft[key],q=Number(qty)||0,n=Number(v?.shipped??q);
@@ -205,14 +209,19 @@ function packingShipmentSummary(){
  const knownCases=Object.keys(cart).filter(k=>!k.startsWith('eiko:')).map(k=>packingShipmentDraft[k]?.casesPulled??null);
  let boxes={cartons:null,manual:false};
  try{boxes=packingShippingCartonCount(knownCases,document.getElementById('orderShippingCartons')?.value??'')}catch{}
- const raw=document.getElementById('orderManualTotalWeight')?.value??'';
- const manual=raw.trim()!==''&&Number.isFinite(Number(raw))&&Number(raw)>=0?Number(raw):null;
+ let freight=null;
+ try{freight=packingBoxFormTotals()}catch{}
+ const subtotal=document.getElementById('orderBoxWeightSubtotal');
+ if(subtotal&&freight)subtotal.textContent=freight.entered+' of '+(freight.count??'?')+' box weights entered'+
+  (freight.boxWeightLb!==null?' · Box subtotal: '+freight.boxWeightLb.toFixed(2)+' lb':'')+
+  (freight.palletCount?' · '+freight.palletCount+' pallet(s) × 35 lb = '+freight.palletWeightLb+' lb':'');
  const target=document.getElementById('cartTotal');
  if(target)target.textContent=ordered+' ordered · '+shipped+' shipped · '+backordered+' backordered'+
   (cases?' · '+cases+' cases pulled':'')+
   (boxes.cartons!==null?' · '+boxes.cartons+' shipping boxes':'')+
   (mode==='pallets'?' · '+(pallets||'Enter')+' pallet(s)':'')+
-  ' · Final shipping weight: '+(manual===null?'Not entered':manual.toFixed(2)+' lb (manual, includes packaging)');
+  ' · Final shipping weight: '+(freight?.finalWeightLb===null||!freight?'Not entered':
+    freight.finalWeightLb.toFixed(2)+' lb'+(freight.manualOverrideLb!==null?' (override)':' (from entered boxes'+(pallets?' + pallets':'')+')'));
 }
 function packingShipmentClear(){
  for(const k of Object.keys(packingShipmentDraft))delete packingShipmentDraft[k];
