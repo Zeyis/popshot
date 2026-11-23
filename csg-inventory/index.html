@@ -485,7 +485,7 @@ async function placeOrder(){
   const customer=titleCase($('orderCustomer').value),job=$('orderJob').value.trim();
   if(!customer)throw Error('Customer / company is required.');
   const hasVoltec=activeOrderDivision==='voltec',hasReliance=activeOrderDivision==='reliance',hasShipping=hasVoltec||hasReliance;
-  const shipping=hasShipping?packingShippingDetails():{shippingMethod:'cartons',palletCount:0,shippingCartons:null,manualTotalWeightLb:null};
+  const shipping=hasShipping?packingShippingDetails():{shippingMethod:'cartons',palletCount:0,shippingCartons:null,manualTotalWeightLb:null,boxWeightsLb:[]};
   const lines=Object.entries(cart).map(([key,qty])=>{
    const [division,id]=key.split(':'),item=manualOrderGet(key)||inventoryOf(division).find(x=>x.id===Number(id)),ordered=Number(qty);
    if(!item||!Number.isSafeInteger(ordered)||ordered<1)throw Error('Check the selected quantities.');
@@ -500,7 +500,9 @@ async function placeOrder(){
    ?'Create '+brandLabel(activeOrderDivision)+' packing slip?\n\n'+ordered+' units ordered · '+shipped+' shipped · '+(ordered-shipped)+' backordered.'+
      '\nShipping: '+(shipping.shippingMethod==='pallets'?shipping.palletCount+' pallet(s)':'Cartons')+
      (shipping.shippingCartons!==null?' · '+shipping.shippingCartons+' actual shipping boxes':'')+
-     '\nFinal shipping weight: '+(shipping.manualTotalWeightLb===null?'Not entered':shipping.manualTotalWeightLb+' lb (entered manually; includes pallets)')+
+     '\nFinal shipping weight: '+(shipping.manualTotalWeightLb!==null
+      ?shipping.manualTotalWeightLb+' lb (manual override)'
+      :(packingBoxFormTotals().finalWeightLb===null?'Not entered':packingBoxFormTotals().finalWeightLb+' lb (measured boxes and pallets)'))+
      '\n\nOnly warehouse-stock items will have their shipped units deducted; custom parts are packing-list-only.'
    :'Create this order and deduct '+shipped+' units from shared inventory?'))return;
   const btn=$('placeOrderButton');btn.disabled=true;
@@ -508,6 +510,7 @@ async function placeOrder(){
    const existingIds=new Set((db.orders||[]).map(x=>x.id));
    const response=await change('order',{customer,job,
     shippingMethod:shipping.shippingMethod,palletCount:shipping.palletCount,shippingCartons:shipping.shippingCartons,manualTotalWeightLb:shipping.manualTotalWeightLb,
+    boxWeightsLb:shipping.boxWeightsLb,
     voltecSalesOrder:hasVoltec?$('orderVoltecSales').value.trim():'',
     relianceSalesOrder:hasReliance?$('orderVoltecSales').value.trim():'',
     customerPo:hasShipping?$('orderCustomerPO').value.trim():'',
